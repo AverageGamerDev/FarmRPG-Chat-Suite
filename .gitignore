@@ -1,0 +1,16 @@
+node_modules/
+.pnpm-store/
+
+.env
+.env.*
+*.local
+
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+coverage/
+.nyc_output/
+
+.DS_Store
+Thumbs.db

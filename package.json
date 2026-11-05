@@ -1,0 +1,25 @@
+{
+  "name": "chat-suite",
+  "version": "1.0.0",
+  "description": "Modular FarmRPG chat enhancements and quick chat userscript",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --test",
+    "build": "node esbuild.config.js",
+    "watch": "node esbuild.config.js --watch"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "^11.6.0",
+      "onFail": "download"
+    }
+  },
+  "type": "module",
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}

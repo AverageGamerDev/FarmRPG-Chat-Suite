@@ -1,0 +1,217 @@
+.fcs-panel {
+  position: fixed;
+  z-index: 100000;
+  box-sizing: border-box;
+  background: var(--fcs-surface);
+  color: var(--fcs-text);
+  border: 1px solid var(--fcs-border);
+  border-radius: var(--fcs-radius-lg);
+  box-shadow: var(--fcs-shadow);
+  font-family: var(--fcs-font);
+  font-size: 13px;
+}
+
+.fcs-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(300px, calc(100vw - 16px));
+  max-height: min(70vh, calc(100vh - 80px));
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.fcs-menu[hidden] {
+  display: none;
+}
+
+.fcs-menu-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.fcs-menu-field {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--fcs-text);
+  background: var(--fcs-raised);
+  border: 1px solid var(--fcs-border);
+  border-radius: var(--fcs-radius);
+}
+
+.fcs-menu-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 2px;
+  cursor: pointer;
+}
+
+.fcs-menu-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.fcs-menu-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.fcs-menu-hint {
+  font-size: 11px;
+  color: var(--fcs-muted);
+}
+
+.fcs-switch {
+  appearance: none;
+  flex-shrink: 0;
+  width: 36px;
+  height: 22px;
+  margin: 0;
+  border-radius: 999px;
+  background: var(--fcs-border);
+  position: relative;
+  cursor: pointer;
+}
+
+.fcs-switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--fcs-raised);
+  transition: transform 0.15s ease;
+}
+
+.fcs-switch:checked {
+  background: var(--fcs-accent);
+}
+
+.fcs-switch:checked::after {
+  transform: translateX(14px);
+}
+
+.fcs-switch:focus-visible {
+  outline: 2px solid var(--fcs-accent-text);
+  outline-offset: 2px;
+}
+
+.fcs-menu-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+  border-top: 1px solid var(--fcs-border);
+}
+
+.fcs-menu-status {
+  min-height: 14px;
+  font-size: 11px;
+  color: var(--fcs-accent-text);
+}
+
+.fcs-menu-status:empty {
+  display: none;
+}
+
+#bottom a.fcs-menu-btn.is-open {
+  box-shadow: inset 0 -3px 0 var(--fcs-accent);
+}
+
+.navbar .fcs-active {
+  display: inline-block;
+  max-width: 34vw;
+  margin-right: 8px;
+  overflow: hidden;
+  color: var(--fcs-accent);
+  font-family: var(--fcs-font);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.navbar .fcs-active[hidden] {
+  display: none;
+}
+
+.chat-txt.fcs-own {
+  border: 3px solid var(--fcs-accent-text);
+  border-radius: var(--fcs-radius);
+  padding: 2px;
+}
+
+.chat-txt.fcs-keyword {
+  border-left: 4px solid var(--fcs-keyword);
+  background-color: var(--fcs-keyword-soft);
+  padding-left: 8px;
+}
+
+.chat-txt.fcs-pin-target {
+  position: relative;
+}
+
+.chat-txt.fcs-pinned {
+  background-color: var(--fcs-accent-soft);
+  border: 3px solid var(--fcs-accent-text);
+  border-radius: var(--fcs-radius);
+  padding: 4px;
+}
+
+.chat-txt > button.fcs-pin-btn {
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  width: auto;
+  margin: 0;
+  background: var(--fcs-overlay);
+  border: 1px solid var(--fcs-overlay-border);
+  border-radius: var(--fcs-radius-sm);
+  padding: 2px 6px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.7;
+  z-index: 10;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.chat-txt > button.fcs-pin-btn:hover,
+.chat-txt > button.fcs-pin-btn.is-on {
+  opacity: 1;
+}
+
+.chat-txt > button.fcs-pin-btn:hover {
+  transform: scale(1.1);
+}
+
+.fcs-keyword-badge {
+  display: inline-block;
+  background: var(--fcs-keyword);
+  color: var(--fcs-on-keyword);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: var(--fcs-radius-sm);
+  margin-left: 8px;
+  font-weight: bold;
+}
+
+.fcs-separator {
+  text-align: center;
+  margin: 12px 0;
+  font-size: 12px;
+  color: var(--fcs-accent-text);
+  font-weight: bold;
+  opacity: 0.9;
+  padding: 4px 0;
+}

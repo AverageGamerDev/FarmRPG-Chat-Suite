@@ -1,0 +1,52 @@
+---
+description: FarmRPG Chat Suite map. Read this instead of exploring the tree.
+alwaysApply: true
+---
+
+# FarmRPG Chat Suite
+
+Userscript. esbuild bundles `src/main.js` to `dist/farmrpg-chat-suite.user.js` (IIFE, CSS as text). Matches and `@grant GM_notification` live in `esbuild.config.js`.
+
+`pnpm build` · `pnpm watch` · `pnpm test` (`test/suite.test.js`, node:test).
+
+This file is the map. Open one row below. Do not scan the repo, `ref/`, `dist/`, or `node_modules`. Open `ref/` only to check old behavior.
+
+| Task | Open |
+|---|---|
+| Boot | `src/main.js` |
+| Add or reorder a tool | `src/features/index.js`, contract in `src/core/feature.js` |
+| Chat DOM | `src/core/chat.js` (shape is the file header) |
+| Page re-renders | `src/core/dom-observer.js` |
+| Saved keys | `src/core/storage.js` |
+| Menu | `src/ui/control-panel.js` on `#bottom .footer-btn-row`. Active names go on `.navbar-inner.navbar-on-center .right` |
+| Enhancer CSS | `src/ui/styles/suite.css` |
+| Quick chat CSS | `src/ui/styles/quick-chat.css` |
+| Colors | `src/ui/styles/tokens.css` only. Accent for actions, pins, and session. Leaf green for item alerts. |
+| Quick chat | one file in `src/features/quick-chat/`: `index` wires, `ui` draws, `phrase-manager`, `placeholder-manager`, `search`, `import-export`, `shortcuts` |
+
+## Contract
+
+Pipeline tool: `defineFeature({ id, toggle: { label, hint }, autoStart, extras, start, stop, onMessages, scanExisting })`. `start` returning `false` stays off. `ctx` is `storage`, `identity`, `notify`, `ensureNotificationPermission`.
+
+Always-on tool: `mount(ctx)` only. Quick chat does this and ignores the message stream.
+
+Registry order is the pipeline: mentions, highlight, separator, pins, keywords, quick-chat. First visit turns Session on. After that, the saved list in `fcs_enabled_v1` wins. A new `toggle.label` shows up in the menu and the navbar label.
+
+```js
+export const myTool = defineFeature({
+  id: "my-tool",
+  toggle: { label: "My Tool", hint: "What it does" },
+  onMessages(messages, _mutations, ctx) {},
+});
+// append myTool in src/features/index.js
+```
+
+## Keep
+
+- Keys: `farmrpg_chat_username` (JSON string), `farmrpg_chat_keywords`, `frpgqp_phrases_v1`, `frpgqp_lastvalues_v1`. Mentions and highlight share one username.
+- Item keywords match `<img alt>` in the message body, not free text.
+- Pins and the separator anchor are in-memory. Pins clear when the feature stops.
+- Classes: `fcs-` enhancer, `fcs-qc-` quick chat. No raw colors outside `tokens.css`. `data-fcs-theme` on `<html>` follows the page background.
+- Enabled tools persist in `fcs_enabled_v1`. The navbar label reads `toggle.label`.
+- Call `GM_notification` only after `typeof GM_notification === "function"`.
+- The game swaps pages without reload. Re-attach from `onDocumentMutations`. Do not keep detached nodes.

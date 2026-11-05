@@ -1,0 +1,73 @@
+/*
+  Color tokens for every feature. Edit this file only.
+  theme.js sets data-fcs-theme="light|dark" on <html> from the page background.
+  One accent (harvest orange) covers actions, your messages, pins, and the session mark.
+  Item alerts use the leaf green. Danger is only for delete and reset.
+*/
+
+:root,
+:root[data-fcs-theme="light"] {
+  color-scheme: light;
+  --fcs-font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --fcs-radius-sm: 4px;
+  --fcs-radius: 6px;
+  --fcs-radius-lg: 10px;
+
+  --fcs-surface: #f6f3ec;
+  --fcs-raised: #fffcf8;
+  --fcs-raised-hover: #efeae1;
+  --fcs-border: #ddd4c6;
+  --fcs-shadow: 0 6px 24px rgba(48, 36, 16, 0.14);
+  --fcs-overlay: #fffcf8;
+  --fcs-overlay-border: #d5ccbe;
+
+  --fcs-text: #241f18;
+  --fcs-muted: #6f675c;
+
+  --fcs-accent: #f97316;
+  --fcs-accent-text: #c2410c;
+  --fcs-on-accent: #1c140c;
+  --fcs-accent-soft: rgba(249, 115, 22, 0.16);
+
+  --fcs-danger: #b42318;
+  --fcs-danger-solid: #9f2d22;
+  --fcs-on-danger: #fff;
+  --fcs-danger-soft: rgba(180, 35, 24, 0.12);
+
+  --fcs-keyword: #2f6b45;
+  --fcs-on-keyword: #fff;
+  --fcs-keyword-soft: rgba(47, 107, 69, 0.14);
+}
+
+:root[data-fcs-theme="dark"] {
+  color-scheme: dark;
+  --fcs-font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --fcs-radius-sm: 4px;
+  --fcs-radius: 6px;
+  --fcs-radius-lg: 10px;
+
+  --fcs-surface: #262e29;
+  --fcs-raised: #313b35;
+  --fcs-raised-hover: #3a463f;
+  --fcs-border: #46534b;
+  --fcs-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  --fcs-overlay: #313b35;
+  --fcs-overlay-border: #46534b;
+
+  --fcs-text: #eef2e8;
+  --fcs-muted: #a9b6a6;
+
+  --fcs-accent: #fb7a24;
+  --fcs-accent-text: #fb7a24;
+  --fcs-on-accent: #1d1a14;
+  --fcs-accent-soft: rgba(251, 122, 36, 0.18);
+
+  --fcs-danger: #f08a7d;
+  --fcs-danger-solid: #9f2d22;
+  --fcs-on-danger: #fff;
+  --fcs-danger-soft: rgba(240, 138, 125, 0.16);
+
+  --fcs-keyword: #9dcc8a;
+  --fcs-on-keyword: #142016;
+  --fcs-keyword-soft: rgba(157, 204, 138, 0.16);
+}
