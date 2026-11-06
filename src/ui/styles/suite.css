@@ -126,6 +126,34 @@
   box-shadow: inset 0 -3px 0 var(--fcs-accent);
 }
 
+#bottom .fcs-has-unread {
+  position: relative;
+}
+
+.fcs-unread {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: var(--fcs-accent);
+  color: var(--fcs-on-accent);
+  font-family: var(--fcs-font);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.fcs-unread[hidden] {
+  display: none;
+}
+
 .navbar .fcs-active {
   display: inline-block;
   max-width: 34vw;

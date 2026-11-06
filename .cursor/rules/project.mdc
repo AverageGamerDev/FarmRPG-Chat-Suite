@@ -19,7 +19,7 @@ This file is the map. Open one row below. Do not scan the repo, `ref/`, `dist/`,
 | Page re-renders | `src/core/dom-observer.js`. Watch every zone that is present, including one the layout has hidden |
 | Chat while the mobile panel is closed | `src/core/chat-poll.js`. Poll `worker.php?go=getchat`. Alerts run on new rows. The session anchor waits until a connected zone redraws |
 | Saved keys | `src/core/storage.js` |
-| Menu | `src/ui/control-panel.js` on `#bottom .footer-btn-row`. Active names go on `.navbar-inner.navbar-on-center .right` |
+| Menu | `src/ui/control-panel.js` on `#bottom .footer-btn-row`. Active names go on `.navbar-inner.navbar-on-center .right`. Unread count is `src/ui/unread.js` on the bottom-bar chat button |
 | Enhancer CSS | `src/ui/styles/suite.css` |
 | Quick chat CSS | `src/ui/styles/quick-chat.css` |
 | Colors | `src/ui/styles/tokens.css` only. Accent for actions, pins, and session. Leaf green for item alerts. |
@@ -50,5 +50,6 @@ export const myTool = defineFeature({
 - Pins and the separator anchor are in-memory. The separator anchor is per zone. A redraw that still starts with that message does not insert a line. Pins clear when the feature stops.
 - Classes: `fcs-` enhancer, `fcs-qc-` quick chat. No raw colors outside `tokens.css`. `data-fcs-theme` on `<html>` follows the page background.
 - Enabled tools persist in `fcs_enabled_v1`. The navbar label reads `toggle.label`.
+- The unread count is in-memory. It counts a mention or item alert once while chat is hidden, and clears when the mobile panel or desktop chat is open.
 - Call `GM_notification` only after `typeof GM_notification === "function"`.
 - The game swaps pages without reload. Re-attach from `onDocumentMutations`. Do not keep detached nodes.

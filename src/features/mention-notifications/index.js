@@ -43,6 +43,7 @@ export const mentionNotifications = defineFeature({
 
       const author = messageAuthor(message);
       ctx.notify("You were mentioned!", `${author}: ${text.slice(0, 100)}`);
+      ctx.markUnread?.(id);
       log.info("Mention detected", author);
     }
   },

@@ -593,6 +593,7 @@
         if (matches.has(id)) continue;
         matches.add(id);
         ctx.notify(`Keyword Alert: "${keyword}"`, messageAuthor(message));
+        ctx.markUnread?.(id);
         log.info("Keyword match", keyword);
       }
     }
@@ -633,6 +634,7 @@
         seen.add(id);
         const author = messageAuthor(message);
         ctx.notify("You were mentioned!", `${author}: ${text.slice(0, 100)}`);
+        ctx.markUnread?.(id);
         log.info("Mention detected", author);
       }
     }
@@ -1862,7 +1864,7 @@
   var tokens_default = '/*\n  Color tokens for every feature. Edit this file only.\n  theme.js sets data-fcs-theme="light|dark" on <html> from the page background.\n  One accent (harvest orange) covers actions, your messages, pins, and the session mark.\n  Item alerts use the leaf green. Danger is only for delete and reset.\n*/\n\n:root,\n:root[data-fcs-theme="light"] {\n  color-scheme: light;\n  --fcs-font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;\n  --fcs-radius-sm: 4px;\n  --fcs-radius: 6px;\n  --fcs-radius-lg: 10px;\n\n  --fcs-surface: #f6f3ec;\n  --fcs-raised: #fffcf8;\n  --fcs-raised-hover: #efeae1;\n  --fcs-border: #ddd4c6;\n  --fcs-shadow: 0 6px 24px rgba(48, 36, 16, 0.14);\n  --fcs-overlay: #fffcf8;\n  --fcs-overlay-border: #d5ccbe;\n\n  --fcs-text: #241f18;\n  --fcs-muted: #6f675c;\n\n  --fcs-accent: #f97316;\n  --fcs-accent-text: #c2410c;\n  --fcs-on-accent: #1c140c;\n  --fcs-accent-soft: rgba(249, 115, 22, 0.16);\n\n  --fcs-danger: #b42318;\n  --fcs-danger-solid: #9f2d22;\n  --fcs-on-danger: #fff;\n  --fcs-danger-soft: rgba(180, 35, 24, 0.12);\n\n  --fcs-keyword: #2f6b45;\n  --fcs-on-keyword: #fff;\n  --fcs-keyword-soft: rgba(47, 107, 69, 0.14);\n}\n\n:root[data-fcs-theme="dark"] {\n  color-scheme: dark;\n  --fcs-font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;\n  --fcs-radius-sm: 4px;\n  --fcs-radius: 6px;\n  --fcs-radius-lg: 10px;\n\n  --fcs-surface: #262e29;\n  --fcs-raised: #313b35;\n  --fcs-raised-hover: #3a463f;\n  --fcs-border: #46534b;\n  --fcs-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);\n  --fcs-overlay: #313b35;\n  --fcs-overlay-border: #46534b;\n\n  --fcs-text: #eef2e8;\n  --fcs-muted: #a9b6a6;\n\n  --fcs-accent: #fb7a24;\n  --fcs-accent-text: #fb7a24;\n  --fcs-on-accent: #1d1a14;\n  --fcs-accent-soft: rgba(251, 122, 36, 0.18);\n\n  --fcs-danger: #f08a7d;\n  --fcs-danger-solid: #9f2d22;\n  --fcs-on-danger: #fff;\n  --fcs-danger-soft: rgba(240, 138, 125, 0.16);\n\n  --fcs-keyword: #9dcc8a;\n  --fcs-on-keyword: #142016;\n  --fcs-keyword-soft: rgba(157, 204, 138, 0.16);\n}\n';
 
   // src/ui/styles/suite.css
-  var suite_default = '.fcs-panel {\n  position: fixed;\n  z-index: 100000;\n  box-sizing: border-box;\n  background: var(--fcs-surface);\n  color: var(--fcs-text);\n  border: 1px solid var(--fcs-border);\n  border-radius: var(--fcs-radius-lg);\n  box-shadow: var(--fcs-shadow);\n  font-family: var(--fcs-font);\n  font-size: 13px;\n}\n\n.fcs-menu {\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n  width: min(300px, calc(100vw - 16px));\n  max-height: min(70vh, calc(100vh - 80px));\n  overflow-y: auto;\n  padding: 10px;\n}\n\n.fcs-menu[hidden] {\n  display: none;\n}\n\n.fcs-menu-title {\n  font-size: 13px;\n  font-weight: 600;\n}\n\n.fcs-menu-field {\n  box-sizing: border-box;\n  width: 100%;\n  padding: 6px 8px;\n  font: inherit;\n  font-size: 12px;\n  color: var(--fcs-text);\n  background: var(--fcs-raised);\n  border: 1px solid var(--fcs-border);\n  border-radius: var(--fcs-radius);\n}\n\n.fcs-menu-row {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  padding: 6px 2px;\n  cursor: pointer;\n}\n\n.fcs-menu-copy {\n  display: flex;\n  flex-direction: column;\n  gap: 2px;\n  min-width: 0;\n  flex: 1;\n}\n\n.fcs-menu-label {\n  font-size: 13px;\n  font-weight: 600;\n}\n\n.fcs-menu-hint {\n  font-size: 11px;\n  color: var(--fcs-muted);\n}\n\n.fcs-switch {\n  appearance: none;\n  flex-shrink: 0;\n  width: 36px;\n  height: 22px;\n  margin: 0;\n  border-radius: 999px;\n  background: var(--fcs-border);\n  position: relative;\n  cursor: pointer;\n}\n\n.fcs-switch::after {\n  content: "";\n  position: absolute;\n  top: 3px;\n  left: 3px;\n  width: 16px;\n  height: 16px;\n  border-radius: 50%;\n  background: var(--fcs-raised);\n  transition: transform 0.15s ease;\n}\n\n.fcs-switch:checked {\n  background: var(--fcs-accent);\n}\n\n.fcs-switch:checked::after {\n  transform: translateX(14px);\n}\n\n.fcs-switch:focus-visible {\n  outline: 2px solid var(--fcs-accent-text);\n  outline-offset: 2px;\n}\n\n.fcs-menu-footer {\n  display: flex;\n  justify-content: flex-end;\n  padding-top: 4px;\n  border-top: 1px solid var(--fcs-border);\n}\n\n.fcs-menu-status {\n  min-height: 14px;\n  font-size: 11px;\n  color: var(--fcs-accent-text);\n}\n\n.fcs-menu-status:empty {\n  display: none;\n}\n\n#bottom a.fcs-menu-btn.is-open {\n  box-shadow: inset 0 -3px 0 var(--fcs-accent);\n}\n\n.navbar .fcs-active {\n  display: inline-block;\n  max-width: 34vw;\n  margin-right: 8px;\n  overflow: hidden;\n  color: var(--fcs-accent);\n  font-family: var(--fcs-font);\n  font-size: 11px;\n  font-weight: 600;\n  line-height: 1.2;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n  vertical-align: middle;\n}\n\n.navbar .fcs-active[hidden] {\n  display: none;\n}\n\n.chat-txt.fcs-own {\n  border: 3px solid var(--fcs-accent-text);\n  border-radius: var(--fcs-radius);\n  padding: 2px;\n}\n\n.chat-txt.fcs-keyword {\n  border-left: 4px solid var(--fcs-keyword);\n  background-color: var(--fcs-keyword-soft);\n  padding-left: 8px;\n}\n\n.chat-txt.fcs-pin-target {\n  position: relative;\n}\n\n.chat-txt.fcs-pinned {\n  background-color: var(--fcs-accent-soft);\n  border: 3px solid var(--fcs-accent-text);\n  border-radius: var(--fcs-radius);\n  padding: 4px;\n}\n\n.chat-txt > button.fcs-pin-btn {\n  position: absolute;\n  right: 4px;\n  top: 4px;\n  width: auto;\n  min-width: 32px;\n  min-height: 32px;\n  margin: 0;\n  background: var(--fcs-overlay);\n  border: 1px solid var(--fcs-overlay-border);\n  border-radius: var(--fcs-radius-sm);\n  padding: 2px 6px;\n  cursor: pointer;\n  font-size: 14px;\n  line-height: 1;\n  opacity: 0.7;\n  z-index: 10;\n  transition: opacity 0.2s, transform 0.2s;\n}\n\n.chat-txt > button.fcs-pin-btn:hover,\n.chat-txt > button.fcs-pin-btn.is-on {\n  opacity: 1;\n}\n\n.chat-txt > button.fcs-pin-btn:hover {\n  transform: scale(1.1);\n}\n\n.fcs-keyword-badge {\n  display: inline-block;\n  background: var(--fcs-keyword);\n  color: var(--fcs-on-keyword);\n  font-size: 10px;\n  padding: 2px 6px;\n  border-radius: var(--fcs-radius-sm);\n  margin-left: 8px;\n  font-weight: bold;\n}\n\n.chat-txt .chip-label .fcs-keyword-badge {\n  flex: 0 0 auto;\n  align-self: center;\n  vertical-align: middle;\n}\n\n.fcs-separator {\n  text-align: center;\n  margin: 12px 0;\n  font-size: 12px;\n  color: var(--fcs-accent-text);\n  font-weight: bold;\n  opacity: 0.9;\n  padding: 4px 0;\n}\n';
+  var suite_default = '.fcs-panel {\n  position: fixed;\n  z-index: 100000;\n  box-sizing: border-box;\n  background: var(--fcs-surface);\n  color: var(--fcs-text);\n  border: 1px solid var(--fcs-border);\n  border-radius: var(--fcs-radius-lg);\n  box-shadow: var(--fcs-shadow);\n  font-family: var(--fcs-font);\n  font-size: 13px;\n}\n\n.fcs-menu {\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n  width: min(300px, calc(100vw - 16px));\n  max-height: min(70vh, calc(100vh - 80px));\n  overflow-y: auto;\n  padding: 10px;\n}\n\n.fcs-menu[hidden] {\n  display: none;\n}\n\n.fcs-menu-title {\n  font-size: 13px;\n  font-weight: 600;\n}\n\n.fcs-menu-field {\n  box-sizing: border-box;\n  width: 100%;\n  padding: 6px 8px;\n  font: inherit;\n  font-size: 12px;\n  color: var(--fcs-text);\n  background: var(--fcs-raised);\n  border: 1px solid var(--fcs-border);\n  border-radius: var(--fcs-radius);\n}\n\n.fcs-menu-row {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  padding: 6px 2px;\n  cursor: pointer;\n}\n\n.fcs-menu-copy {\n  display: flex;\n  flex-direction: column;\n  gap: 2px;\n  min-width: 0;\n  flex: 1;\n}\n\n.fcs-menu-label {\n  font-size: 13px;\n  font-weight: 600;\n}\n\n.fcs-menu-hint {\n  font-size: 11px;\n  color: var(--fcs-muted);\n}\n\n.fcs-switch {\n  appearance: none;\n  flex-shrink: 0;\n  width: 36px;\n  height: 22px;\n  margin: 0;\n  border-radius: 999px;\n  background: var(--fcs-border);\n  position: relative;\n  cursor: pointer;\n}\n\n.fcs-switch::after {\n  content: "";\n  position: absolute;\n  top: 3px;\n  left: 3px;\n  width: 16px;\n  height: 16px;\n  border-radius: 50%;\n  background: var(--fcs-raised);\n  transition: transform 0.15s ease;\n}\n\n.fcs-switch:checked {\n  background: var(--fcs-accent);\n}\n\n.fcs-switch:checked::after {\n  transform: translateX(14px);\n}\n\n.fcs-switch:focus-visible {\n  outline: 2px solid var(--fcs-accent-text);\n  outline-offset: 2px;\n}\n\n.fcs-menu-footer {\n  display: flex;\n  justify-content: flex-end;\n  padding-top: 4px;\n  border-top: 1px solid var(--fcs-border);\n}\n\n.fcs-menu-status {\n  min-height: 14px;\n  font-size: 11px;\n  color: var(--fcs-accent-text);\n}\n\n.fcs-menu-status:empty {\n  display: none;\n}\n\n#bottom a.fcs-menu-btn.is-open {\n  box-shadow: inset 0 -3px 0 var(--fcs-accent);\n}\n\n#bottom .fcs-has-unread {\n  position: relative;\n}\n\n.fcs-unread {\n  position: absolute;\n  top: 1px;\n  right: 1px;\n  min-width: 16px;\n  height: 16px;\n  padding: 0 4px;\n  box-sizing: border-box;\n  border-radius: 999px;\n  background: var(--fcs-accent);\n  color: var(--fcs-on-accent);\n  font-family: var(--fcs-font);\n  font-size: 10px;\n  font-weight: 700;\n  line-height: 16px;\n  text-align: center;\n  pointer-events: none;\n  z-index: 2;\n}\n\n.fcs-unread[hidden] {\n  display: none;\n}\n\n.navbar .fcs-active {\n  display: inline-block;\n  max-width: 34vw;\n  margin-right: 8px;\n  overflow: hidden;\n  color: var(--fcs-accent);\n  font-family: var(--fcs-font);\n  font-size: 11px;\n  font-weight: 600;\n  line-height: 1.2;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n  vertical-align: middle;\n}\n\n.navbar .fcs-active[hidden] {\n  display: none;\n}\n\n.chat-txt.fcs-own {\n  border: 3px solid var(--fcs-accent-text);\n  border-radius: var(--fcs-radius);\n  padding: 2px;\n}\n\n.chat-txt.fcs-keyword {\n  border-left: 4px solid var(--fcs-keyword);\n  background-color: var(--fcs-keyword-soft);\n  padding-left: 8px;\n}\n\n.chat-txt.fcs-pin-target {\n  position: relative;\n}\n\n.chat-txt.fcs-pinned {\n  background-color: var(--fcs-accent-soft);\n  border: 3px solid var(--fcs-accent-text);\n  border-radius: var(--fcs-radius);\n  padding: 4px;\n}\n\n.chat-txt > button.fcs-pin-btn {\n  position: absolute;\n  right: 4px;\n  top: 4px;\n  width: auto;\n  min-width: 32px;\n  min-height: 32px;\n  margin: 0;\n  background: var(--fcs-overlay);\n  border: 1px solid var(--fcs-overlay-border);\n  border-radius: var(--fcs-radius-sm);\n  padding: 2px 6px;\n  cursor: pointer;\n  font-size: 14px;\n  line-height: 1;\n  opacity: 0.7;\n  z-index: 10;\n  transition: opacity 0.2s, transform 0.2s;\n}\n\n.chat-txt > button.fcs-pin-btn:hover,\n.chat-txt > button.fcs-pin-btn.is-on {\n  opacity: 1;\n}\n\n.chat-txt > button.fcs-pin-btn:hover {\n  transform: scale(1.1);\n}\n\n.fcs-keyword-badge {\n  display: inline-block;\n  background: var(--fcs-keyword);\n  color: var(--fcs-on-keyword);\n  font-size: 10px;\n  padding: 2px 6px;\n  border-radius: var(--fcs-radius-sm);\n  margin-left: 8px;\n  font-weight: bold;\n}\n\n.chat-txt .chip-label .fcs-keyword-badge {\n  flex: 0 0 auto;\n  align-self: center;\n  vertical-align: middle;\n}\n\n.fcs-separator {\n  text-align: center;\n  margin: 12px 0;\n  font-size: 12px;\n  color: var(--fcs-accent-text);\n  font-weight: bold;\n  opacity: 0.9;\n  padding: 4px 0;\n}\n';
 
   // src/ui/styles/quick-chat.css
   var quick_chat_default = ".fcs-qc-row {\n  list-style: none;\n  padding: 2px 15px 6px;\n}\n\n.fcs-qc-open {\n  width: 100%;\n  padding: 5px 8px;\n  font-size: 12px;\n  font-family: inherit;\n  color: var(--fcs-text);\n  background: var(--fcs-surface);\n  border: 1px solid var(--fcs-border);\n  border-left: 3px solid var(--fcs-accent-text);\n  border-radius: 6px;\n  cursor: pointer;\n}\n\n.fcs-qc-open:hover {\n  background: var(--fcs-raised);\n}\n\n#fcs-qc-popup {\n  display: none;\n  flex-direction: column;\n  gap: 6px;\n  width: min(360px, calc(100vw - 16px));\n  max-height: min(70vh, 520px);\n  padding: 8px;\n  outline: none;\n}\n\n#fcs-qc-popup button:focus-visible,\n#fcs-qc-popup input:focus-visible,\n#fcs-qc-popup textarea:focus-visible,\n.fcs-qc-open:focus-visible {\n  outline: 2px solid var(--fcs-accent-text);\n  outline-offset: 1px;\n}\n\n.fcs-qc-header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 6px;\n  padding-bottom: 6px;\n  border-bottom: 1px solid var(--fcs-border);\n}\n\n.fcs-qc-title {\n  color: var(--fcs-text);\n  font-size: 13px;\n  font-weight: 600;\n}\n\n.fcs-qc-header-actions {\n  display: flex;\n  gap: 4px;\n}\n\n.fcs-qc-btn {\n  padding: 3px 7px;\n  font-size: 11px;\n  font-family: inherit;\n  color: var(--fcs-text);\n  background: var(--fcs-raised);\n  border: 1px solid var(--fcs-border);\n  border-radius: 5px;\n  cursor: pointer;\n  white-space: nowrap;\n}\n\n.fcs-qc-btn:hover {\n  background: var(--fcs-raised-hover);\n}\n\n.fcs-qc-btn:disabled {\n  opacity: 0.35;\n  cursor: default;\n}\n\n.fcs-qc-btn-primary {\n  color: var(--fcs-on-accent);\n  background: var(--fcs-accent);\n  border-color: var(--fcs-accent);\n  font-weight: 600;\n}\n\n.fcs-qc-btn-primary:hover {\n  background: var(--fcs-accent);\n  filter: brightness(1.1);\n}\n\n.fcs-qc-btn-danger {\n  color: var(--fcs-danger);\n  border-color: var(--fcs-danger);\n  background: transparent;\n}\n\n.fcs-qc-btn-danger:hover {\n  background: var(--fcs-danger-soft);\n}\n\n.fcs-qc-btn-ghost {\n  background: none;\n  border-color: transparent;\n  color: var(--fcs-muted);\n}\n\n.fcs-qc-list {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  min-height: 0;\n  overflow-y: auto;\n}\n\n.fcs-qc-empty {\n  color: var(--fcs-muted);\n  font-size: 12px;\n  font-style: italic;\n  padding: 4px 2px;\n}\n\n.fcs-qc-item {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  min-width: 0;\n  padding: 6px 8px;\n  text-align: left;\n  font-family: inherit;\n  color: var(--fcs-text);\n  background: var(--fcs-raised);\n  border: 1px solid var(--fcs-border);\n  border-left: 3px solid transparent;\n  border-radius: 6px;\n  cursor: pointer;\n}\n\n.fcs-qc-item:hover {\n  background: var(--fcs-raised-hover);\n  border-left-color: var(--fcs-accent-text);\n}\n\n.fcs-qc-num {\n  flex-shrink: 0;\n  width: 16px;\n  font-size: 10px;\n  line-height: 16px;\n  text-align: center;\n  color: var(--fcs-muted);\n  border: 1px solid var(--fcs-border);\n  border-radius: 4px;\n}\n\n.fcs-qc-num-hidden {\n  visibility: hidden;\n}\n\n.fcs-qc-item-body {\n  display: flex;\n  flex-direction: column;\n  gap: 2px;\n  flex: 1;\n  min-width: 0;\n}\n\n.fcs-qc-item-top {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  min-width: 0;\n}\n\n.fcs-qc-item-title {\n  min-width: 0;\n  font-size: 12px;\n  font-weight: 600;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.fcs-qc-tag {\n  margin-left: auto;\n  flex-shrink: 0;\n  padding: 0 6px;\n  font-size: 10px;\n  color: var(--fcs-accent-text);\n  border: 1px solid var(--fcs-accent-text);\n  border-radius: 8px;\n}\n\n.fcs-qc-item-text {\n  display: block;\n  font-size: 12px;\n  color: var(--fcs-muted);\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.fcs-qc-edit-row {\n  display: flex;\n  flex-wrap: wrap;\n  align-items: center;\n  gap: 6px;\n  padding: 4px 6px;\n  background: var(--fcs-raised);\n  border: 1px solid var(--fcs-border);\n  border-radius: 6px;\n}\n\n.fcs-qc-edit-label {\n  flex: 1 1 100px;\n  min-width: 0;\n  font-size: 12px;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.fcs-qc-edit-actions {\n  display: flex;\n  gap: 3px;\n  flex-shrink: 0;\n}\n\n.fcs-qc-form {\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n  min-height: 0;\n  overflow-y: auto;\n}\n\n.fcs-qc-form-heading {\n  font-size: 12px;\n  font-weight: 600;\n  color: var(--fcs-text);\n}\n\n.fcs-qc-field {\n  box-sizing: border-box;\n  width: 100%;\n  padding: 5px 7px;\n  font-size: 12px;\n  font-family: inherit;\n  color: var(--fcs-text);\n  background: var(--fcs-raised);\n  border: 1px solid var(--fcs-border);\n  border-radius: 5px;\n}\n\n.fcs-qc-textarea {\n  resize: vertical;\n}\n\n.fcs-qc-form-actions,\n.fcs-qc-footer {\n  display: flex;\n  gap: 4px;\n}\n\n.fcs-qc-footer {\n  padding-top: 6px;\n  border-top: 1px solid var(--fcs-border);\n}\n\n.fcs-qc-fill-row {\n  display: flex;\n  flex-direction: column;\n  gap: 3px;\n}\n\n.fcs-qc-fill-label {\n  font-size: 11px;\n  color: var(--fcs-muted);\n}\n\n.fcs-qc-preview {\n  padding: 6px 8px;\n  font-size: 12px;\n  color: var(--fcs-text);\n  background: var(--fcs-raised);\n  border: 1px dashed var(--fcs-border);\n  border-radius: 5px;\n  word-break: break-word;\n}\n\n.fcs-qc-hint {\n  font-size: 11px;\n  color: var(--fcs-muted);\n}\n\n.fcs-qc-status {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  min-height: 14px;\n  font-size: 11px;\n  color: var(--fcs-accent-text);\n}\n\n.fcs-qc-status:empty {\n  display: none;\n}\n";
@@ -1946,12 +1948,107 @@ ${quick_chat_default}`;
     (document.head || document.documentElement).appendChild(style);
   }
 
+  // src/ui/unread.js
+  var BADGE_CLASS2 = "fcs-unread";
+  var MARKED_CLASS = "fcs-has-unread";
+  function findChatOpenButton(root = document) {
+    const direct = root.querySelector("#openchatbtn, #bottom a.open-panel, #bottom [data-panel='right']");
+    if (direct) return direct;
+    const row = root.querySelector("#bottom .footer-btn-row");
+    if (!row) return null;
+    return Array.from(row.querySelectorAll("a, button")).find((node) => {
+      if (node.classList?.contains("fcs-menu-btn")) return false;
+      const hint = [
+        node.id,
+        node.className,
+        node.getAttribute?.("href") || "",
+        node.getAttribute?.("aria-label") || ""
+      ].join(" ").toLowerCase();
+      return hint.includes("chat");
+    }) ?? null;
+  }
+  function unreadLabel(count) {
+    if (!count || count < 1) return "";
+    if (count > 9) return "9+";
+    return String(count);
+  }
+  function applyUnread(count, id, chatHidden, seen2) {
+    if (!chatHidden) {
+      const changed = count !== 0;
+      if (changed) seen2.clear();
+      return { count: 0, changed };
+    }
+    if (!id || seen2.has(id)) return { count, changed: false };
+    seen2.add(id);
+    return { count: count + 1, changed: true };
+  }
+  function mountUnreadMark() {
+    const seen2 = createBoundedSet(200);
+    let count = 0;
+    let badge = null;
+    let panel = null;
+    let panelObserver = null;
+    function chatHidden() {
+      return shouldPollChat(chatPollState());
+    }
+    function paint2() {
+      const button2 = findChatOpenButton();
+      if (!button2) {
+        badge?.remove();
+        return;
+      }
+      if (!badge) {
+        badge = document.createElement("span");
+        badge.className = BADGE_CLASS2;
+      }
+      if (badge.parentElement !== button2) button2.appendChild(badge);
+      const label = unreadLabel(count);
+      badge.textContent = label;
+      badge.hidden = !label;
+      badge.title = label ? `${count} new chat alert${count === 1 ? "" : "s"}` : "";
+      button2.classList.toggle(MARKED_CLASS, Boolean(label));
+    }
+    function note(id) {
+      const next = applyUnread(count, id, chatHidden(), seen2);
+      count = next.count;
+      if (next.changed) paint2();
+    }
+    function sync() {
+      if (!chatHidden() && count !== 0) {
+        count = 0;
+        seen2.clear();
+      }
+      paint2();
+      watchPanel();
+    }
+    function watchPanel() {
+      const next = document.querySelector("#mobilechatpanel");
+      if (next === panel) return;
+      panelObserver?.disconnect();
+      panel = next;
+      if (!panel) return;
+      panelObserver = new MutationObserver(sync);
+      panelObserver.observe(panel, { attributes: true, attributeFilter: ["class", "style"] });
+    }
+    onDocumentMutations(sync);
+    document.addEventListener("click", (event) => {
+      const button2 = findChatOpenButton();
+      if (!button2?.contains(event.target)) return;
+      count = 0;
+      seen2.clear();
+      paint2();
+    });
+    return { note };
+  }
+
   // src/main.js
   function boot() {
+    const unread = mountUnreadMark();
     const ctx = {
       storage,
       identity: createIdentity(storage),
       notify,
+      markUnread: unread.note,
       ensureNotificationPermission
     };
     function deliver(messages, mutations) {

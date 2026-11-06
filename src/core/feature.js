@@ -10,6 +10,7 @@
  * @property {import("./storage.js").createStorage extends Function ? ReturnType<import("./storage.js").createStorage> : never} storage
  * @property {ReturnType<import("./identity.js").createIdentity>} identity
  * @property {(title: string, text: string) => void} notify
+ * @property {(id: string) => void} [markUnread]
  * @property {() => Promise<boolean>} ensureNotificationPermission
  */
 

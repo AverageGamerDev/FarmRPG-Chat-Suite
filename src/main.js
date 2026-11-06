@@ -7,12 +7,15 @@ import { storage } from "./core/storage.js";
 import { features } from "./features/index.js";
 import { mountControlPanel } from "./ui/control-panel.js";
 import { injectStyles } from "./ui/styles.js";
+import { mountUnreadMark } from "./ui/unread.js";
 
 function boot() {
+  const unread = mountUnreadMark();
   const ctx = {
     storage,
     identity: createIdentity(storage),
     notify,
+    markUnread: unread.note,
     ensureNotificationPermission,
   };
 

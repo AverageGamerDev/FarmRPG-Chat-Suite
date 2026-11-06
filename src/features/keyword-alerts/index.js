@@ -133,6 +133,7 @@ export const keywordAlerts = defineFeature({
 
       matches.add(id);
       ctx.notify(`Keyword Alert: "${keyword}"`, messageAuthor(message));
+      ctx.markUnread?.(id);
       log.info("Keyword match", keyword);
     }
   },

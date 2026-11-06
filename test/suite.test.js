@@ -16,6 +16,7 @@ import {
 import { createIdentity, normalizeUsername, sanitizeUsername } from "../src/core/identity.js";
 import { createMemoryStorage, keys } from "../src/core/storage.js";
 import { planSessionSeparator } from "../src/features/session-markers/index.js";
+import { applyUnread, findChatOpenButton, unreadLabel } from "../src/ui/unread.js";
 import {
   extractItemNames,
   matchKeyword,
@@ -118,6 +119,31 @@ test("closed mobile chat is polled and an open chat is left to the game", () => 
   seen.add("old");
   const fresh = unseenMessages(seen, [{ id: "old" }, { id: "new" }], (message) => message.id);
   assert.deepEqual(fresh.map((message) => message.id), ["new"]);
+});
+
+test("unread mark counts hidden alerts once and clears when chat is open", () => {
+  const seen = createBoundedSet(10);
+  let state = applyUnread(0, "mention", true, seen);
+  assert.equal(state.count, 1);
+  state = applyUnread(state.count, "mention", true, seen);
+  assert.equal(state.count, 1);
+  assert.equal(state.changed, false);
+  state = applyUnread(state.count, "lemon", true, seen);
+  assert.equal(state.count, 2);
+  assert.equal(unreadLabel(state.count), "2");
+  assert.equal(unreadLabel(12), "9+");
+  assert.equal(unreadLabel(0), "");
+
+  state = applyUnread(state.count, "later", false, seen);
+  assert.equal(state.count, 0);
+
+  const button = findChatOpenButton({
+    querySelector(selector) {
+      if (selector.startsWith("#openchatbtn")) return { id: "openchatbtn" };
+      return null;
+    },
+  });
+  assert.equal(button.id, "openchatbtn");
 });
 
 test("desktop and mobile chat zones are both watched", () => {
