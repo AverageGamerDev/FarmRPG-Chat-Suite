@@ -41,7 +41,8 @@ function insertSeparator(beforeMessage) {
   log.info("Session separator inserted");
 }
 
-let lastKnown = null;
+const anchors = new WeakMap();
+let fallbackAnchor = null;
 
 export const sessionMarkers = defineFeature({
   id: "separator",
@@ -62,13 +63,16 @@ export const sessionMarkers = defineFeature({
   },
 
   onMessages(messages, mutations) {
+    const zone = messages[0]?.closest?.("#chatzoneDesktop, #chatzoneMobile") ?? null;
+    const previous = zone ? anchors.get(zone) ?? null : fallbackAnchor;
     const plan = planSessionSeparator(
-      lastKnown,
+      previous,
       messages,
       chatWasCleared(mutations),
       fingerprint,
     );
-    lastKnown = plan.lastKnown;
+    if (zone) anchors.set(zone, plan.lastKnown);
+    else fallbackAnchor = plan.lastKnown;
     if (plan.before) insertSeparator(plan.before);
   },
 });

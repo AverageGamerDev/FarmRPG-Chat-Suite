@@ -1,4 +1,4 @@
-import { findChatContainer, MESSAGE_SELECTOR } from "./chat.js";
+import { findChatContainers, MESSAGE_SELECTOR } from "./chat.js";
 import { log } from "./log.js";
 
 const listeners = new Set();
@@ -72,37 +72,46 @@ export function collectChatMessages(mutations) {
 }
 
 /**
- * Follows the chat zone across page swaps. `onMessages` receives only newly
- * added message nodes. `onReady` runs each time a (new) zone is attached so
- * features can paint messages that were already on screen.
+ * Follows every chat zone across page swaps. Desktop and mobile zones are
+ * both in the DOM; the layout only shows one. `onMessages` receives newly
+ * added message nodes from the zone that changed. `onReady` runs each time a
+ * new zone is attached so features can paint messages already on screen.
  *
  * @param {(messages: Element[], mutations: MutationRecord[]) => void} onMessages
  * @param {() => void} [onReady]
  */
 export function createChatWatcher(onMessages, onReady) {
-  let zone = null;
-  let observer = null;
+  const observers = new Map();
 
   function attach() {
-    const next = findChatContainer();
-    if (!next || next === zone) return;
+    const zones = findChatContainers();
+    const live = new Set(zones);
 
-    observer?.disconnect();
-    zone = next;
-    observer = new MutationObserver((mutations) => {
-      const messages = collectChatMessages(mutations);
-      if (messages.length === 0) return;
+    for (const [zone, observer] of observers) {
+      if (live.has(zone) && zone.isConnected) continue;
+      observer.disconnect();
+      observers.delete(zone);
+    }
 
-      try {
-        onMessages(messages, mutations);
-      } catch (error) {
-        log.error("chat watcher failed", error);
-      }
-    });
+    for (const zone of zones) {
+      if (observers.has(zone)) continue;
 
-    observer.observe(zone, { childList: true, subtree: true });
-    log.info("Watching", zone.id || "chat");
-    onReady?.();
+      const observer = new MutationObserver((mutations) => {
+        const messages = collectChatMessages(mutations);
+        if (messages.length === 0) return;
+
+        try {
+          onMessages(messages, mutations);
+        } catch (error) {
+          log.error("chat watcher failed", error);
+        }
+      });
+
+      observer.observe(zone, { childList: true, subtree: true });
+      observers.set(zone, observer);
+      log.info("Watching", zone.id || "chat");
+      onReady?.();
+    }
   }
 
   return {

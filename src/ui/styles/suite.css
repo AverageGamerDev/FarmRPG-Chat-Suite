@@ -173,6 +173,8 @@
   right: 4px;
   top: 4px;
   width: auto;
+  min-width: 32px;
+  min-height: 32px;
   margin: 0;
   background: var(--fcs-overlay);
   border: 1px solid var(--fcs-overlay-border);
@@ -204,6 +206,12 @@
   border-radius: var(--fcs-radius-sm);
   margin-left: 8px;
   font-weight: bold;
+}
+
+.chat-txt .chip-label .fcs-keyword-badge {
+  flex: 0 0 auto;
+  align-self: center;
+  vertical-align: middle;
 }
 
 .fcs-separator {

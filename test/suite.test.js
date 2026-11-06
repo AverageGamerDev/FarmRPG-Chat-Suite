@@ -1,6 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createBoundedSet } from "../src/core/bounded-set.js";
+import {
+  CHAT_INPUT_SELECTOR,
+  findChatContainer,
+  findChatContainers,
+  findChatInputs,
+  fingerprint,
+  messageAuthor,
+  messageBody,
+  messageProfileName,
+  messageText,
+} from "../src/core/chat.js";
 import { createIdentity, normalizeUsername, sanitizeUsername } from "../src/core/identity.js";
 import { createMemoryStorage, keys } from "../src/core/storage.js";
 import { planSessionSeparator } from "../src/features/session-markers/index.js";
@@ -83,6 +94,85 @@ test("session separator anchors on the previous message only after a redraw", ()
   const firstLoad = planSessionSeparator(null, messages, true, fingerprintOf);
   assert.equal(firstLoad.before, null);
   assert.equal(firstLoad.lastKnown, "new");
+});
+
+test("desktop and mobile chat zones are both watched", () => {
+  const desktop = { id: "chatzoneDesktop" };
+  const mobile = { id: "chatzoneMobile" };
+  const root = {
+    querySelectorAll(selector) {
+      if (selector === "#chatzoneDesktop") return [desktop];
+      if (selector === "#chatzoneMobile") return [mobile];
+      return [];
+    },
+  };
+
+  assert.deepEqual(findChatContainers(root), [desktop, mobile]);
+  assert.equal(findChatContainer(root), desktop);
+});
+
+test("mobile composer is a chat input", () => {
+  assert.match(CHAT_INPUT_SELECTOR, /#chat_message_compact/);
+  const input = { id: "chat_message_compact" };
+  const root = {
+    querySelectorAll(selector) {
+      assert.equal(selector, CHAT_INPUT_SELECTOR);
+      return [input];
+    },
+  };
+  assert.deepEqual(findChatInputs(root), [input]);
+});
+
+function authorNode(text, { link = false, query = null } = {}) {
+  const node = {
+    textContent: text,
+    children: [],
+    classList: { contains: () => false },
+    matches: (selector) => link && selector.includes("user_name"),
+    querySelector: () => query,
+    querySelectorAll: () => [],
+  };
+  node.cloneNode = () => authorNode(text, { link });
+  return node;
+}
+
+test("mobile chat messages keep the desktop child slots", () => {
+  const body = {
+    innerText: "@Duckster sorry",
+    textContent: "@Duckster sorry lemon",
+    children: [
+      {
+        matches: (selector) => selector === "a",
+        children: [{ matches: (selector) => selector === "img", alt: "Lemon" }],
+      },
+      { matches: () => false, children: [] },
+    ],
+  };
+  const authorLink = authorNode("Farmer Choupisson", { link: true });
+  authorLink.getAttribute = () => "profile.php?user_name=Farmer+Choupisson";
+  const chip = authorNode(" Farmer Choupisson  [200] ", { query: authorLink });
+  const message = {
+    children: [{ textContent: "04:01:04 PM" }, {}, chip, {}, {}, body],
+    querySelector: (selector) =>
+      selector.startsWith('a[href^="profile.php?user_name="]') ? authorLink : null,
+  };
+
+  assert.equal(messageText(message), "@Duckster sorry");
+  assert.equal(messageBody(message), body);
+  assert.equal(messageAuthor(message), "Farmer Choupisson");
+  assert.equal(messageProfileName(message), "Farmer+Choupisson");
+  assert.equal(fingerprint(message), "04:01:04 PM:@Duckster sorry lemon");
+  assert.deepEqual(extractItemNames(body), ["Lemon"]);
+
+  const desktop = {
+    children: [{}, {}, authorNode("Cadis", { link: true })],
+  };
+  assert.equal(messageAuthor(desktop), "Cadis");
+
+  const plain = {
+    children: [{}, {}, authorNode("Zwinkster [1,200]")],
+  };
+  assert.equal(messageAuthor(plain), "Zwinkster");
 });
 
 test("item keywords match image names, not free text", () => {

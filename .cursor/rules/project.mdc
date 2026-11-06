@@ -15,8 +15,8 @@ This file is the map. Open one row below. Do not scan the repo, `ref/`, `dist/`,
 |---|---|
 | Boot | `src/main.js` |
 | Add or reorder a tool | `src/features/index.js`, contract in `src/core/feature.js` |
-| Chat DOM | `src/core/chat.js` (shape is the file header) |
-| Page re-renders | `src/core/dom-observer.js` |
+| Chat DOM | `src/core/chat.js` (shape is the file header). Desktop `#chatzoneDesktop` and mobile `#chatzoneMobile` (inside `#mobilechatpanel`) are both live. Composer includes `#chat_message_compact` |
+| Page re-renders | `src/core/dom-observer.js`. Watch every zone that is present, including one the layout has hidden |
 | Saved keys | `src/core/storage.js` |
 | Menu | `src/ui/control-panel.js` on `#bottom .footer-btn-row`. Active names go on `.navbar-inner.navbar-on-center .right` |
 | Enhancer CSS | `src/ui/styles/suite.css` |
@@ -44,8 +44,9 @@ export const myTool = defineFeature({
 ## Keep
 
 - Keys: `farmrpg_chat_username` (JSON string), `farmrpg_chat_keywords`, `frpgqp_phrases_v1`, `frpgqp_lastvalues_v1`. Mentions and highlight share one username.
-- Item keywords match `<img alt>` in the message body, not free text.
-- Pins and the separator anchor are in-memory. Pins clear when the feature stops.
+- Item keywords match `<img alt>` in the message body, not free text. On mobile the badge sits in `.chip-label`.
+- The author name is the profile link in message child 2. A chip level such as `[200]` is not the name.
+- Pins and the separator anchor are in-memory. The separator anchor is per zone. Pins clear when the feature stops.
 - Classes: `fcs-` enhancer, `fcs-qc-` quick chat. No raw colors outside `tokens.css`. `data-fcs-theme` on `<html>` follows the page background.
 - Enabled tools persist in `fcs_enabled_v1`. The navbar label reads `toggle.label`.
 - Call `GM_notification` only after `typeof GM_notification === "function"`.

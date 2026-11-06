@@ -61,6 +61,10 @@ function save(store) {
   store.setJson(keys.keywords, Array.from(keywords));
 }
 
+function badgeHost(author) {
+  return author.querySelector?.(".chip-label") || author;
+}
+
 function applyHighlight(message, keyword) {
   if (message.classList.contains("fcs-pinned")) return;
 
@@ -68,13 +72,14 @@ function applyHighlight(message, keyword) {
   const author = message.children[2];
   if (!author) return;
 
-  let badge = Array.from(author.children).find((child) =>
-    child.classList.contains(BADGE_CLASS),
+  const host = badgeHost(author);
+  let badge = Array.from(host.children).find((child) =>
+    child.classList?.contains(BADGE_CLASS),
   );
   if (!badge) {
     badge = document.createElement("span");
     badge.className = BADGE_CLASS;
-    author.appendChild(badge);
+    host.appendChild(badge);
   }
   badge.textContent = `🔔 ${keyword}`;
 }

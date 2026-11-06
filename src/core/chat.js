@@ -1,28 +1,37 @@
 /**
  * FarmRPG chat DOM, shared by every message feature.
  *
- * Zones: #chatzoneDesktop and #chatzoneMobile.
- * Each message is .chat-txt:
- *   child 0  timestamp
- *   child 2  username
- *   child 5  message body (item links render as <a><img alt="item"></a>)
+ * Zones: #chatzoneDesktop and #chatzoneMobile. Both stay in the page.
+ * The desktop zone is hidden in the mobile layout. The mobile zone lives in
+ * #mobilechatpanel, which opens from the bottom bar. Watch every zone present.
+ *
+ * Each message is .chat-txt. Element children:
+ *   0  timestamp
+ *   2  username — a profile link, or a .chip whose profile link is the name.
+ *      The chip also shows a level such as "[200]"; that level is not the name.
+ *   5  message body (item links render as <a><img alt="item"></a>)
  * Profile links: profile.php?user_name=<name> with spaces as "+".
- * Composer: #chat_txt_desktop, #chat_txt_mobile, or input[id^="chat_txt_"].
+ * Composer: #chat_txt_desktop, #chat_txt_mobile, #chat_message_compact,
+ * or input[id^="chat_txt_"].
  */
 
 export const CHAT_SELECTORS = ["#chatzoneDesktop", "#chatzoneMobile"];
 
 export const CHAT_INPUT_SELECTOR =
-  "#chat_txt_desktop, #chat_txt_mobile, input[id^='chat_txt_']";
+  "#chat_txt_desktop, #chat_txt_mobile, #chat_message_compact, input[id^='chat_txt_']";
 
 export const MESSAGE_SELECTOR = ".chat-txt";
 
-export function findChatContainer(root = document) {
+export function findChatContainers(root = document) {
+  const found = [];
   for (const selector of CHAT_SELECTORS) {
-    const container = root.querySelector(selector);
-    if (container) return container;
+    found.push(...root.querySelectorAll(selector));
   }
-  return null;
+  return found;
+}
+
+export function findChatContainer(root = document) {
+  return findChatContainers(root)[0] ?? null;
 }
 
 export function queryMessages(root = document) {
@@ -39,23 +48,38 @@ export function messageBody(message) {
   return message.children[5] ?? null;
 }
 
+const AUTHOR_LINK = 'a[href*="profile.php?user_name="]';
+
+function authorLabel(node) {
+  if (!node) return "";
+
+  const copy = typeof node.cloneNode === "function" ? node.cloneNode(true) : node;
+  const badges = typeof copy.querySelectorAll === "function"
+    ? Array.from(copy.querySelectorAll(".fcs-keyword-badge"))
+    : [];
+  for (const badge of badges) badge.remove();
+  Array.from(copy.children || [])
+    .filter((child) => child.classList?.contains("fcs-keyword-badge"))
+    .forEach((child) => child.remove());
+
+  return (copy.textContent || "").replace(/\s+/g, " ").trim();
+}
+
 /**
- * Author label without a keyword badge that may have been appended inside it.
+ * Author label. The mobile username is a .chip that also contains the level,
+ * so the profile link inside child 2 is the name. A keyword badge appended
+ * inside that slot is left out.
  */
 export function messageAuthor(message) {
   const node = message.children[2];
   if (!node) return "Someone";
 
-  const badge = Array.from(node.children).find((child) =>
-    child.classList?.contains("fcs-keyword-badge"),
-  );
-  if (!badge) return node.textContent || "Someone";
+  const link = node.matches?.(AUTHOR_LINK) ? node : node.querySelector?.(AUTHOR_LINK);
+  const fromLink = authorLabel(link);
+  if (fromLink) return fromLink;
 
-  const copy = node.cloneNode(true);
-  Array.from(copy.children)
-    .filter((child) => child.classList?.contains("fcs-keyword-badge"))
-    .forEach((child) => child.remove());
-  return copy.textContent || "Someone";
+  const label = authorLabel(node).replace(/\s\[\d[\d,]*\]$/, "");
+  return label || "Someone";
 }
 
 /**
