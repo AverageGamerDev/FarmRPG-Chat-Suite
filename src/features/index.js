@@ -1,3 +1,4 @@
+import { friendMarks } from "./friends/index.js";
 import { keywordAlerts } from "./keyword-alerts/index.js";
 import { mentionNotifications } from "./mention-notifications/index.js";
 import { messagePins } from "./message-pins/index.js";
@@ -8,7 +9,7 @@ import { sessionMarkers } from "./session-markers/index.js";
 
 /**
  * Registry of suite tools. Pipeline order matches the original enhancer:
- * mentions, own-message highlight, session separator, pins, item keywords, then mute.
+ * mentions, own-message highlight, friends, session separator, pins, item keywords, then mute.
  * Quick chat is always on and does not read the message stream.
  *
  * To add a feature: implement the contract in src/core/feature.js and append it here.
@@ -16,6 +17,7 @@ import { sessionMarkers } from "./session-markers/index.js";
 export const features = [
   mentionNotifications,
   ownMessageHighlighter,
+  friendMarks,
   sessionMarkers,
   messagePins,
   keywordAlerts,

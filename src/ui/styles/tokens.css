@@ -2,7 +2,7 @@
   Color tokens for every feature. Edit this file only.
   theme.js sets data-fcs-theme="light|dark" on <html> from the page background.
   One accent (harvest orange) covers actions, your messages, pins, and the session mark.
-  Item alerts use the leaf green. Danger is only for delete and reset.
+  Item alerts use the leaf green. Friends use blue. Danger is only for delete and reset.
 */
 
 :root,
@@ -37,6 +37,8 @@
   --fcs-keyword: #2f6b45;
   --fcs-on-keyword: #fff;
   --fcs-keyword-soft: rgba(47, 107, 69, 0.14);
+
+  --fcs-friend: #2a6fbf;
 }
 
 :root[data-fcs-theme="dark"] {
@@ -70,4 +72,6 @@
   --fcs-keyword: #9dcc8a;
   --fcs-on-keyword: #142016;
   --fcs-keyword-soft: rgba(157, 204, 138, 0.16);
+
+  --fcs-friend: #9ec1f5;
 }

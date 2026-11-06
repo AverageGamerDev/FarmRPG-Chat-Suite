@@ -5,7 +5,7 @@ import { button, el } from "./dom.js";
 
 const FOOTER_SELECTOR = "#bottom .footer-btn-row";
 const NAVBAR_SELECTOR = ".navbar-inner.navbar-on-center .right";
-const PREFERRED_ORDER = ["mentions", "highlight", "pins", "separator", "keywords", "mute"];
+const PREFERRED_ORDER = ["mentions", "highlight", "friends", "pins", "separator", "keywords", "mute"];
 
 /**
  * Names of the tools that are currently on, in menu order.
@@ -51,6 +51,7 @@ export function mountControlPanel(features, ctx) {
     });
 
     if (menu.muteList) syncMuteList(menu.muteList, ctx);
+    if (menu.friendList) syncFriendList(menu.friendList, ctx);
   }
 
   function persist() {
@@ -71,6 +72,12 @@ export function mountControlPanel(features, ctx) {
         input.checked = false;
         menu.setStatus("Add an item name first");
         menu.keywords?.focus();
+        return;
+      }
+      if (feature.requires === "friends" && !feature.readFriends?.().length) {
+        input.checked = false;
+        menu.setStatus("Add a friend first");
+        menu.friendName?.focus();
         return;
       }
       if (feature.start(ctx) === false) input.checked = false;
@@ -98,6 +105,7 @@ export function mountControlPanel(features, ctx) {
     anchor = buttonNode;
     open = true;
     featureById(features, "keywords")?.loadFrom?.(ctx);
+    featureById(features, "friends")?.loadFrom?.(ctx);
     if (menu.username) menu.username.value = ctx.identity.recall() || "";
     if (menu.keywords) menu.keywords.value = featureById(features, "keywords")?.readText?.() || "";
     if (menu.tradeSide) menu.tradeSide.value = featureById(features, "keywords")?.readSide?.() || "both";
@@ -268,6 +276,64 @@ function buildTradeSide(feature, ctx, api) {
   return field;
 }
 
+function buildFriendEntry(feature, ctx, api) {
+  feature.loadFrom?.(ctx);
+  const field = el("div", "fcs-friend-add");
+  const input = el("input", "fcs-menu-field");
+  input.type = "text";
+  input.placeholder = "Add a friend";
+  input.autocomplete = "off";
+
+  function commit() {
+    const added = feature.addNames(ctx, input.value);
+    if (!added) return;
+    input.value = "";
+    api.afterChange?.();
+  }
+
+  input.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    commit();
+  });
+
+  const list = el("div", "fcs-friend-list");
+  list.hidden = true;
+  api.friendName = input;
+  api.friendList = {
+    feature,
+    list,
+    changed() {
+      api.afterChange?.();
+    },
+  };
+  feature.subscribe?.(() => syncFriendList(api.friendList, ctx));
+
+  field.append(input, button("Add", "", commit));
+  const wrap = el("div", "fcs-friend-entry");
+  wrap.append(field, list);
+  return wrap;
+}
+
+function syncFriendList(slot, ctx) {
+  const people = slot.feature.readFriends();
+  const key = people.map((person) => person.id).join("\n");
+  if (slot.list.dataset.fcsKey === key) return;
+
+  slot.list.dataset.fcsKey = key;
+  slot.list.replaceChildren();
+  slot.list.hidden = people.length === 0;
+  for (const person of people) {
+    const row = el("div", "fcs-friend-row");
+    row.appendChild(el("span", "fcs-friend-name", person.label));
+    row.appendChild(button("Remove", "", () => {
+      slot.feature.remove(ctx, person.id);
+      slot.changed?.();
+    }));
+    slot.list.appendChild(row);
+  }
+}
+
 function syncMuteList(slot, ctx) {
   const players = slot.feature.isEnabled() ? slot.feature.readMuted() : [];
   const key = players.map((player) => player.id).join("\n");
@@ -386,6 +452,10 @@ function buildMenu(features, ctx) {
       root.appendChild(list);
       api.muteList = { feature, list };
       feature.subscribe?.(() => syncMuteList(api.muteList, ctx));
+    }
+
+    if (feature.readFriends && feature.addNames) {
+      root.appendChild(buildFriendEntry(feature, ctx, api));
     }
   }
 

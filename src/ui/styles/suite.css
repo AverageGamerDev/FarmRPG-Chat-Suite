@@ -191,6 +191,12 @@
   padding: 2px;
 }
 
+.chat-txt.fcs-friend:not(.fcs-own) {
+  border: 3px solid var(--fcs-friend);
+  border-radius: var(--fcs-radius);
+  padding: 2px;
+}
+
 .chat-txt.fcs-keyword {
   border-left: 4px solid var(--fcs-keyword);
   background-color: var(--fcs-keyword-soft);
@@ -318,23 +324,43 @@
   cursor: pointer;
 }
 
-.fcs-mute-list {
+.fcs-friend-entry {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.fcs-mute-list[hidden] {
+.fcs-friend-add {
+  display: flex;
+  gap: 6px;
+}
+
+.fcs-friend-add .fcs-menu-field {
+  flex: 1;
+  width: auto;
+}
+
+.fcs-mute-list,
+.fcs-friend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fcs-mute-list[hidden],
+.fcs-friend-list[hidden] {
   display: none;
 }
 
-.fcs-mute-row {
+.fcs-mute-row,
+.fcs-friend-row {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.fcs-mute-name {
+.fcs-mute-name,
+.fcs-friend-name {
   flex: 1;
   min-width: 0;
   overflow: hidden;

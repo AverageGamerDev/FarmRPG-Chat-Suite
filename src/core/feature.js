@@ -3,7 +3,7 @@
  *
  * Pipeline features implement start / stop / onMessages and optional scanExisting.
  * Always-on tools implement mount and skip the message pipeline.
- * Menu rows set `toggle.label`. `requires` is "username" or "keywords".
+ * Menu rows set `toggle.label`. `requires` is "username", "keywords", or "friends".
  * Optional `extras` are actions on that row. Colors live in tokens.css.
  *
  * @typedef {Object} SuiteContext
@@ -18,7 +18,7 @@
  * @param {Object} definition
  * @param {string} definition.id
  * @param {{ label: string, hint?: string }} [definition.toggle]
- * @param {"username" | "keywords"} [definition.requires]
+ * @param {"username" | "keywords" | "friends"} [definition.requires]
  * @param {boolean} [definition.autoStart]
  * @param {Array<Object>} [definition.extras]
  * @param {(ctx: SuiteContext) => boolean | void} [definition.start]

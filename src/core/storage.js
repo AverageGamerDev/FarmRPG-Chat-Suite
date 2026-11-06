@@ -12,6 +12,7 @@ export const keys = {
   watchedChannel: "fcs_watch_channel_v1",
   tradeSide: "fcs_trade_side_v1",
   mutedPlayers: "fcs_muted_players_v1",
+  friends: "fcs_friends_v1",
 };
 
 function browserStorage() {

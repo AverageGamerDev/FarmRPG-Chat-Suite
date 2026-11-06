@@ -33,6 +33,7 @@ import {
   parseKeywordInput,
   tradeIntent,
 } from "../src/features/keyword-alerts/index.js";
+import { friendKey, friendMarks, isFriend, parseFriendInput } from "../src/features/friends/index.js";
 import { playerKey, playerMute } from "../src/features/player-mute/index.js";
 import { mergeImported, toExportJson } from "../src/features/quick-chat/import-export.js";
 import {
@@ -303,6 +304,29 @@ test("trade side drops only the other half of a post", () => {
   assert.equal(keywordAlerts.readSide(), "both");
 });
 
+test("friends match a profile name and stay listed until removed", () => {
+  assert.equal(friendKey("Ada Seller"), "ada seller");
+  assert.equal(friendKey("Ada+Seller"), "ada seller");
+  assert.equal(friendKey("Someone"), "");
+  assert.deepEqual(parseFriendInput("Ada Seller, ada seller, , Bea [200]"), [
+    { id: "ada seller", label: "Ada Seller" },
+    { id: "bea", label: "Bea" },
+  ]);
+  assert.equal(isFriend([{ id: "ada seller", label: "Ada Seller" }], "Ada+Seller"), true);
+  assert.equal(isFriend([{ id: "ada seller", label: "Ada Seller" }], "Bea"), false);
+
+  const store = createMemoryStorage();
+  const ctx = { storage: store };
+  assert.equal(friendMarks.addNames(ctx, "Ada Seller, Bea"), 2);
+  assert.equal(friendMarks.addNames(ctx, "ada seller"), 0);
+  assert.equal(friendMarks.start(ctx), true);
+  friendMarks.remove(ctx, "ada seller");
+  assert.deepEqual(friendMarks.readFriends(), [{ id: "bea", label: "Bea" }]);
+  friendMarks.remove(ctx, "bea");
+  assert.equal(friendMarks.isEnabled(), false);
+  assert.equal(store.get(keys.friends), null);
+});
+
 test("a muted player stays muted until they are unmuted", () => {
   assert.equal(playerKey("Farmer+Choupisson", "Farmer Choupisson"), "farmer choupisson");
   assert.equal(playerKey("", "Someone"), "");
@@ -430,7 +454,7 @@ test("active tool label uses menu names of enabled tools", () => {
 test("feature registry exposes the original tools", () => {
   assert.deepEqual(
     features.map((feature) => feature.id),
-    ["mentions", "highlight", "separator", "pins", "keywords", "mute", "quick-chat"],
+    ["mentions", "highlight", "friends", "separator", "pins", "keywords", "mute", "quick-chat"],
   );
   assert.equal(features.find((feature) => feature.id === "separator").autoStart, true);
   assert.equal(typeof features.find((feature) => feature.id === "quick-chat").mount, "function");
