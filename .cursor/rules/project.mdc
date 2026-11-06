@@ -44,8 +44,8 @@ export const myTool = defineFeature({
 
 ## Keep
 
-- Keys: `farmrpg_chat_username` (JSON string), `farmrpg_chat_keywords`, `frpgqp_phrases_v1`, `frpgqp_lastvalues_v1`, `fcs_watch_channel_v1` (room id, or absent to follow the room on screen). Mentions and highlight share one username.
-- Item keywords match `<img alt>` in the message body, not free text. On mobile the badge sits in `.chip-label`. The same seller posting the same items again stays quiet for 5 minutes. The row still highlights.
+- Keys: `farmrpg_chat_username` (JSON string), `farmrpg_chat_keywords`, `frpgqp_phrases_v1`, `frpgqp_lastvalues_v1`, `fcs_watch_channel_v1` (room id, or absent to follow the room on screen), `fcs_trade_side_v1` (`wts`, `wtb`, or absent for both). Mentions and highlight share one username.
+- Item keywords match `<img alt>` in the message body, not free text. A trade-side setting skips a post that is only the other side. Selling is WTS, selling, or sell. Buying is WTB, buying, or buy. Any capitalization counts. On mobile the badge sits in `.chip-label`. The same seller posting the same items again stays quiet for 5 minutes. The row still highlights.
 - The author name is the profile link in message child 2. A chip level such as `[200]` is not the name.
 - Pins and the separator anchor are in-memory. The separator anchor is per zone. A redraw that still starts with that message does not insert a line. Pins clear when the feature stops.
 - Classes: `fcs-` enhancer, `fcs-qc-` quick chat. No raw colors outside `tokens.css`. `data-fcs-theme` on `<html>` follows the page background.

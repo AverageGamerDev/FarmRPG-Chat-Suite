@@ -25,11 +25,15 @@ import { createMemoryStorage, keys } from "../src/core/storage.js";
 import { planSessionSeparator } from "../src/features/session-markers/index.js";
 import { applyUnread, findChatOpenButton, unreadLabel } from "../src/ui/unread.js";
 import {
+  acceptsTradeSide,
   extractItemNames,
   isRepeatSale,
+  keywordAlerts,
   matchKeyword,
+  normalizeTradeSide,
   parseKeywordInput,
   saleKey,
+  tradeIntent,
 } from "../src/features/keyword-alerts/index.js";
 import { mergeImported, toExportJson } from "../src/features/quick-chat/import-export.js";
 import {
@@ -269,6 +273,35 @@ test("item keywords match image names, not free text", () => {
   assert.deepEqual(extractItemNames(body), ["Dragon Egg"]);
   assert.equal(matchKeyword(extractItemNames(body), ["egg", "stone"]), "egg");
   assert.equal(matchKeyword(["Apple"], ["egg"]), null);
+});
+
+test("trade side drops only the other half of a post", () => {
+  assert.equal(tradeIntent("WTS 500"), "wts");
+  assert.equal(tradeIntent("wtb: please"), "wtb");
+  assert.equal(tradeIntent("SELLING lemon"), "wts");
+  assert.equal(tradeIntent("sell Lemon"), "wts");
+  assert.equal(tradeIntent("Buying lemon"), "wtb");
+  assert.equal(tradeIntent("want to BUY"), "wtb");
+  assert.equal(tradeIntent("WTS apples, WTB rope"), "mixed");
+  assert.equal(tradeIntent("buying or selling"), "mixed");
+  assert.equal(tradeIntent("nice lemon"), "");
+  assert.equal(tradeIntent("seller buyer"), "");
+  assert.equal(acceptsTradeSide("wts", "wtb"), false);
+  assert.equal(acceptsTradeSide("wts", "wts"), true);
+  assert.equal(acceptsTradeSide("wts", ""), true);
+  assert.equal(acceptsTradeSide("wts", "mixed"), true);
+  assert.equal(acceptsTradeSide("both", "wtb"), true);
+  assert.equal(acceptsTradeSide("wtb", "wts"), false);
+  assert.equal(normalizeTradeSide("WTS"), "wts");
+  assert.equal(normalizeTradeSide("nope"), "both");
+
+  const store = createMemoryStorage();
+  keywordAlerts.writeSide({ storage: store }, "wtb");
+  assert.equal(store.get(keys.tradeSide), "wtb");
+  assert.equal(keywordAlerts.readSide(), "wtb");
+  keywordAlerts.writeSide({ storage: store }, "both");
+  assert.equal(store.get(keys.tradeSide), null);
+  assert.equal(keywordAlerts.readSide(), "both");
 });
 
 test("the same seller and items stay quiet for five minutes", () => {

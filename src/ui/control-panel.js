@@ -98,6 +98,7 @@ export function mountControlPanel(features, ctx) {
     featureById(features, "keywords")?.loadFrom?.(ctx);
     if (menu.username) menu.username.value = ctx.identity.recall() || "";
     if (menu.keywords) menu.keywords.value = featureById(features, "keywords")?.readText?.() || "";
+    if (menu.tradeSide) menu.tradeSide.value = featureById(features, "keywords")?.readSide?.() || "both";
     menu.root.hidden = false;
     position(menu.root, buttonNode);
     paint();
@@ -247,6 +248,24 @@ function buildWatchControl(ctx) {
   return field;
 }
 
+function buildTradeSide(feature, ctx, api) {
+  feature.loadFrom?.(ctx);
+  const field = el("label", "fcs-menu-side");
+  field.appendChild(el("span", "fcs-menu-label", "Trade side"));
+  field.appendChild(el("span", "fcs-menu-hint", "Drop the half of Trade you are not looking for"));
+
+  const select = el("select", "fcs-menu-field");
+  select.appendChild(option("both", "Both"));
+  select.appendChild(option("wts", "WTS"));
+  select.appendChild(option("wtb", "WTB"));
+  select.value = feature.readSide();
+  select.addEventListener("change", () => feature.writeSide(ctx, select.value));
+
+  api.tradeSide = select;
+  field.appendChild(select);
+  return field;
+}
+
 function option(value, label) {
   const node = el("option", "", label);
   node.value = value;
@@ -337,6 +356,7 @@ function buildMenu(features, ctx) {
       });
       root.appendChild(keywords);
       api.keywords = keywords;
+      if (feature.readSide && feature.writeSide) root.appendChild(buildTradeSide(feature, ctx, api));
     }
   }
 

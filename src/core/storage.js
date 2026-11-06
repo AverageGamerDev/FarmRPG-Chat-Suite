@@ -10,6 +10,7 @@ export const keys = {
   lastValues: "frpgqp_lastvalues_v1",
   enabled: "fcs_enabled_v1",
   watchedChannel: "fcs_watch_channel_v1",
+  tradeSide: "fcs_trade_side_v1",
 };
 
 function browserStorage() {

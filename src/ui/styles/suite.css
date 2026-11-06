@@ -30,13 +30,15 @@
   font-weight: 600;
 }
 
-.fcs-menu-watch {
+.fcs-menu-watch,
+.fcs-menu-side {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.fcs-menu-watch .fcs-menu-label {
+.fcs-menu-watch .fcs-menu-label,
+.fcs-menu-side .fcs-menu-label {
   font-size: 12px;
 }
 
