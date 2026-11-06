@@ -8,17 +8,14 @@ import {
   queryMessages,
 } from "../../core/chat.js";
 import { defineFeature } from "../../core/feature.js";
-import { normalizeUsername } from "../../core/identity.js";
 import { keys } from "../../core/storage.js";
 import { log } from "../../core/log.js";
+import { playerMute } from "../player-mute/index.js";
 
 const KEYWORD_CLASS = "fcs-keyword";
 const BADGE_CLASS = "fcs-keyword-badge";
 
-const REPEAT_SALE_MS = 5 * 60 * 1000;
-
 const matches = createBoundedSet(100);
-const recentSales = new Map();
 let keywords = new Set();
 let tradeSideFilter = "both";
 
@@ -65,22 +62,6 @@ export function matchKeyword(itemNames, keywordList) {
 }
 
 /**
- * Same seller plus the same item names, ignoring order and case.
- * @param {string | null | undefined} author
- * @param {Iterable<string>} itemNames
- */
-export function saleKey(author, itemNames) {
-  const who = normalizeUsername(author);
-  const items = Array.from(
-    new Set(
-      Array.from(itemNames, (name) => String(name).trim().toLowerCase()).filter(Boolean),
-    ),
-  ).sort();
-  if (!who || items.length === 0) return "";
-  return `${who}\n${items.join("\n")}`;
-}
-
-/**
  * `wts`, `wtb`, or `both` when the saved value is missing or unknown.
  * @param {string | null | undefined} value
  */
@@ -118,27 +99,6 @@ export function acceptsTradeSide(filter, intent) {
   const want = normalizeTradeSide(filter);
   if (want === "both" || !intent || intent === "mixed") return true;
   return intent === want;
-}
-
-/**
- * True when this seller already offered these items inside the quiet window.
- * A new offer is remembered. Entries older than the window are dropped.
- * @param {Map<string, number>} recent
- * @param {string} key
- * @param {number} now
- * @param {number} [windowMs]
- */
-export function isRepeatSale(recent, key, now, windowMs = REPEAT_SALE_MS) {
-  for (const [id, at] of recent) {
-    if (now - at >= windowMs) recent.delete(id);
-  }
-  if (!key) return false;
-
-  const last = recent.get(key);
-  if (last != null && now - last < windowMs) return true;
-
-  recent.set(key, now);
-  return false;
 }
 
 function load(store) {
@@ -197,18 +157,17 @@ function writeKeywords(store, text) {
  * @param {Element} message
  */
 function keywordHit(message) {
-  const names = extractItemNames(messageBody(message));
-  const keyword = matchKeyword(names, keywords);
+  const keyword = matchKeyword(extractItemNames(messageBody(message)), keywords);
   if (!keyword) return null;
   if (!acceptsTradeSide(tradeSideFilter, tradeIntent(messageText(message)))) return null;
-  return { keyword, names };
+  return keyword;
 }
 
 function repaintVisible() {
   removeHighlights();
   for (const message of queryMessages()) {
     const hit = keywordHit(message);
-    if (hit) applyHighlight(message, hit.keyword);
+    if (hit) applyHighlight(message, hit);
   }
 }
 
@@ -231,7 +190,6 @@ export const keywordAlerts = defineFeature({
 
   stop() {
     matches.clear();
-    recentSales.clear();
     removeHighlights();
     log.info("Keyword watcher stopped");
   },
@@ -243,22 +201,22 @@ export const keywordAlerts = defineFeature({
       const hit = keywordHit(message);
       if (!hit) continue;
 
-      const id = fingerprint(message);
-      applyHighlight(message, hit.keyword);
-      if (matches.has(id)) continue;
-
-      matches.add(id);
       const seller = messageProfileName(message) || messageAuthor(message);
-      if (isRepeatSale(recentSales, saleKey(seller, hit.names), Date.now())) {
-        log.info("Repeat sale suppressed", seller);
+      const id = fingerprint(message);
+      if (playerMute.blocks(seller)) {
+        matches.add(id);
         continue;
       }
 
+      applyHighlight(message, hit);
+      if (matches.has(id)) continue;
+
+      matches.add(id);
       const room = message.dataset?.fcsRoom;
-      const title = room ? `Keyword Alert: "${hit.keyword}" · ${room}` : `Keyword Alert: "${hit.keyword}"`;
+      const title = room ? `Keyword Alert: "${hit}" · ${room}` : `Keyword Alert: "${hit}"`;
       ctx.notify(title, messageAuthor(message));
       ctx.markUnread?.(id);
-      log.info("Keyword match", hit.keyword);
+      log.info("Keyword match", hit);
     }
   },
 });

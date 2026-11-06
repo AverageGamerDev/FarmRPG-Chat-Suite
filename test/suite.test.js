@@ -27,14 +27,13 @@ import { applyUnread, findChatOpenButton, unreadLabel } from "../src/ui/unread.j
 import {
   acceptsTradeSide,
   extractItemNames,
-  isRepeatSale,
   keywordAlerts,
   matchKeyword,
   normalizeTradeSide,
   parseKeywordInput,
-  saleKey,
   tradeIntent,
 } from "../src/features/keyword-alerts/index.js";
+import { playerKey, playerMute } from "../src/features/player-mute/index.js";
 import { mergeImported, toExportJson } from "../src/features/quick-chat/import-export.js";
 import {
   fillTemplate,
@@ -304,20 +303,27 @@ test("trade side drops only the other half of a post", () => {
   assert.equal(keywordAlerts.readSide(), "both");
 });
 
-test("the same seller and items stay quiet for five minutes", () => {
-  const recent = new Map();
-  const first = saleKey("Farmer+Choupisson", ["Lemon", "Orange"]);
-  const again = saleKey("farmer choupisson", ["Orange", "Lemon"]);
-  const extra = saleKey("farmer choupisson", ["Lemon", "Rope"]);
-  const other = saleKey("Zwinkster", ["Lemon", "Orange"]);
-  assert.equal(first, again);
+test("a muted player stays muted until they are unmuted", () => {
+  assert.equal(playerKey("Farmer+Choupisson", "Farmer Choupisson"), "farmer choupisson");
+  assert.equal(playerKey("", "Someone"), "");
 
-  const start = 1_000_000;
-  assert.equal(isRepeatSale(recent, first, start), false);
-  assert.equal(isRepeatSale(recent, again, start + 4 * 60 * 1000), true);
-  assert.equal(isRepeatSale(recent, extra, start + 1000), false);
-  assert.equal(isRepeatSale(recent, other, start + 1000), false);
-  assert.equal(isRepeatSale(recent, first, start + 5 * 60 * 1000), false);
+  const store = createMemoryStorage();
+  const ctx = { storage: store };
+  playerMute.mute(ctx, "Farmer+Choupisson", "Farmer Choupisson");
+  assert.equal(playerMute.blocks("Farmer Choupisson"), false);
+
+  playerMute.start(ctx);
+  assert.equal(playerMute.blocks("farmer choupisson"), true);
+  assert.equal(playerMute.blocks("Farmer+Choupisson"), true);
+  assert.deepEqual(playerMute.readMuted(), [
+    { id: "farmer choupisson", label: "Farmer Choupisson" },
+  ]);
+
+  playerMute.unmute(ctx, "farmer choupisson");
+  assert.equal(store.get(keys.mutedPlayers), null);
+  assert.equal(playerMute.blocks("Farmer Choupisson"), false);
+  assert.deepEqual(playerMute.readMuted(), []);
+  playerMute.stop();
 });
 
 test("phrases round-trip through the original storage key", () => {
@@ -424,7 +430,7 @@ test("active tool label uses menu names of enabled tools", () => {
 test("feature registry exposes the original tools", () => {
   assert.deepEqual(
     features.map((feature) => feature.id),
-    ["mentions", "highlight", "separator", "pins", "keywords", "quick-chat"],
+    ["mentions", "highlight", "separator", "pins", "keywords", "mute", "quick-chat"],
   );
   assert.equal(features.find((feature) => feature.id === "separator").autoStart, true);
   assert.equal(typeof features.find((feature) => feature.id === "quick-chat").mount, "function");

@@ -31,7 +31,7 @@ Pipeline tool: `defineFeature({ id, toggle: { label, hint }, autoStart, extras, 
 
 Always-on tool: `mount(ctx)` only. Quick chat does this and ignores the message stream.
 
-Registry order is the pipeline: mentions, highlight, separator, pins, keywords, quick-chat. First visit turns Session on. After that, the saved list in `fcs_enabled_v1` wins. A new `toggle.label` shows up in the menu and the navbar label.
+Registry order is the pipeline: mentions, highlight, separator, pins, keywords, mute, quick-chat. First visit turns Session on. After that, the saved list in `fcs_enabled_v1` wins. A new `toggle.label` shows up in the menu and the navbar label.
 
 ```js
 export const myTool = defineFeature({
@@ -44,8 +44,9 @@ export const myTool = defineFeature({
 
 ## Keep
 
-- Keys: `farmrpg_chat_username` (JSON string), `farmrpg_chat_keywords`, `frpgqp_phrases_v1`, `frpgqp_lastvalues_v1`, `fcs_watch_channel_v1` (room id, or absent to follow the room on screen), `fcs_trade_side_v1` (`wts`, `wtb`, or absent for both). Mentions and highlight share one username.
-- Item keywords match `<img alt>` in the message body, not free text. A trade-side setting skips a post that is only the other side. Selling is WTS, selling, or sell. Buying is WTB, buying, or buy. Any capitalization counts. On mobile the badge sits in `.chip-label`. The same seller posting the same items again stays quiet for 5 minutes. The row still highlights.
+- Keys: `farmrpg_chat_username` (JSON string), `farmrpg_chat_keywords`, `frpgqp_phrases_v1`, `frpgqp_lastvalues_v1`, `fcs_watch_channel_v1` (room id, or absent to follow the room on screen), `fcs_trade_side_v1` (`wts`, `wtb`, or absent for both), `fcs_muted_players_v1` (saved players). Mentions and highlight share one username.
+- Item keywords match `<img alt>` in the message body, not free text. A trade-side setting skips a post that is only the other side. Selling is WTS, selling, or sell. Buying is WTB, buying, or buy. Any capitalization counts. On mobile the badge sits in `.chip-label`. The row still highlights.
+- Mute collapses that player's rows and skips their mention and item alerts. Unmute sits on the collapsed row and in the menu list. The saved list stays when Mute is turned off.
 - The author name is the profile link in message child 2. A chip level such as `[200]` is not the name.
 - Pins and the separator anchor are in-memory. The separator anchor is per zone. A redraw that still starts with that message does not insert a line. Pins clear when the feature stops.
 - Classes: `fcs-` enhancer, `fcs-qc-` quick chat. No raw colors outside `tokens.css`. `data-fcs-theme` on `<html>` follows the page background.

@@ -1,7 +1,8 @@
 import { createBoundedSet } from "../../core/bounded-set.js";
-import { fingerprint, messageAuthor, messageText } from "../../core/chat.js";
+import { fingerprint, messageAuthor, messageProfileName, messageText } from "../../core/chat.js";
 import { defineFeature } from "../../core/feature.js";
 import { log } from "../../core/log.js";
+import { playerMute } from "../player-mute/index.js";
 
 const seen = createBoundedSet(100);
 
@@ -42,6 +43,10 @@ export const mentionNotifications = defineFeature({
       seen.add(id);
 
       const author = messageAuthor(message);
+      if (playerMute.blocks(messageProfileName(message) || author)) {
+        log.info("Mention from muted player skipped", author);
+        continue;
+      }
       const room = message.dataset?.fcsRoom;
       const title = room ? `You were mentioned! · ${room}` : "You were mentioned!";
       ctx.notify(title, `${author}: ${text.slice(0, 100)}`);

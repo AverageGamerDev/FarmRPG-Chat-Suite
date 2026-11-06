@@ -5,7 +5,7 @@ import { button, el } from "./dom.js";
 
 const FOOTER_SELECTOR = "#bottom .footer-btn-row";
 const NAVBAR_SELECTOR = ".navbar-inner.navbar-on-center .right";
-const PREFERRED_ORDER = ["mentions", "highlight", "pins", "separator", "keywords"];
+const PREFERRED_ORDER = ["mentions", "highlight", "pins", "separator", "keywords", "mute"];
 
 /**
  * Names of the tools that are currently on, in menu order.
@@ -49,6 +49,8 @@ export function mountControlPanel(features, ctx) {
     document.querySelectorAll(".fcs-menu-btn").forEach((buttonNode) => {
       buttonNode.classList.toggle("is-open", open);
     });
+
+    if (menu.muteList) syncMuteList(menu.muteList, ctx);
   }
 
   function persist() {
@@ -266,6 +268,25 @@ function buildTradeSide(feature, ctx, api) {
   return field;
 }
 
+function syncMuteList(slot, ctx) {
+  const players = slot.feature.isEnabled() ? slot.feature.readMuted() : [];
+  const key = players.map((player) => player.id).join("\n");
+  if (slot.list.dataset.fcsKey === key) return;
+
+  slot.list.dataset.fcsKey = key;
+  slot.list.replaceChildren();
+  slot.list.hidden = players.length === 0;
+  if (players.length === 0) return;
+
+  slot.list.appendChild(el("span", "fcs-menu-hint", "Muted players"));
+  for (const player of players) {
+    const row = el("div", "fcs-mute-row");
+    row.appendChild(el("span", "fcs-mute-name", player.label));
+    row.appendChild(button("Unmute", "", () => slot.feature.unmute(ctx, player.id)));
+    slot.list.appendChild(row);
+  }
+}
+
 function option(value, label) {
   const node = el("option", "", label);
   node.value = value;
@@ -357,6 +378,14 @@ function buildMenu(features, ctx) {
       root.appendChild(keywords);
       api.keywords = keywords;
       if (feature.readSide && feature.writeSide) root.appendChild(buildTradeSide(feature, ctx, api));
+    }
+
+    if (feature.readMuted && feature.unmute) {
+      const list = el("div", "fcs-mute-list");
+      list.hidden = true;
+      root.appendChild(list);
+      api.muteList = { feature, list };
+      feature.subscribe?.(() => syncMuteList(api.muteList, ctx));
     }
   }
 
