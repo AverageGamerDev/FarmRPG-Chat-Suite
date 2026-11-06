@@ -9,6 +9,7 @@ export const keys = {
   phrases: "frpgqp_phrases_v1",
   lastValues: "frpgqp_lastvalues_v1",
   enabled: "fcs_enabled_v1",
+  watchedChannel: "fcs_watch_channel_v1",
 };
 
 function browserStorage() {

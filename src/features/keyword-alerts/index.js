@@ -181,7 +181,9 @@ export const keywordAlerts = defineFeature({
         continue;
       }
 
-      ctx.notify(`Keyword Alert: "${keyword}"`, messageAuthor(message));
+      const room = message.dataset?.fcsRoom;
+      const title = room ? `Keyword Alert: "${keyword}" · ${room}` : `Keyword Alert: "${keyword}"`;
+      ctx.notify(title, messageAuthor(message));
       ctx.markUnread?.(id);
       log.info("Keyword match", keyword);
     }

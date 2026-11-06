@@ -5,6 +5,46 @@ import { log } from "./log.js";
 const POLL_MS = 4000;
 const ROOM_SELECTORS = ["#chatroom_mobile", "#chatroom_desktop", "input.chatroom"];
 
+/** Room ids match the game's channel links and worker.php?go=getchat&room=. */
+export const CHAT_CHANNELS = [
+  ["help", "Help"],
+  ["global", "Global"],
+  ["spoilers", "Spoilers"],
+  ["trivia", "Trivia"],
+  ["giveaways", "Giveaways"],
+  ["trade", "Trade"],
+];
+
+/**
+ * A saved room id, or "" when alerts should follow the room on screen.
+ * @param {string | null | undefined} value
+ */
+export function normalizeWatchedChannel(value) {
+  const id = String(value || "").trim().toLowerCase();
+  return CHAT_CHANNELS.some(([room]) => room === id) ? id : "";
+}
+
+/**
+ * @param {string} id
+ */
+export function channelLabel(id) {
+  return CHAT_CHANNELS.find(([room]) => room === id)?.[1] || "";
+}
+
+/**
+ * Rooms to fetch this tick. The hidden current room still alerts.
+ * A chosen room is added only while the player is somewhere else.
+ * @param {{ currentRoom?: string, watchedRoom?: string, chatHidden: boolean }} state
+ */
+export function roomsToPoll({ currentRoom, watchedRoom, chatHidden }) {
+  const current = String(currentRoom || "").trim().toLowerCase();
+  const watched = normalizeWatchedChannel(watchedRoom);
+  const rooms = [];
+  if (chatHidden && current) rooms.push(current);
+  if (watched && watched !== current) rooms.push(watched);
+  return rooms;
+}
+
 /**
  * The game only writes new rows into the chat while that chat is on screen.
  * On mobile the panel is closed most of the time, so mentions and item alerts
@@ -67,11 +107,14 @@ export function chatPollState(root = document) {
 }
 
 /**
- * @param {{ onMessages: (messages: Element[], mutations: MutationRecord[]) => void }} options
+ * @param {{
+ *   onMessages: (messages: Element[], mutations: MutationRecord[]) => void,
+ *   readWatched?: () => string,
+ * }} options
  */
-export function createChatPoll({ onMessages }) {
+export function createChatPoll({ onMessages, readWatched = () => "" }) {
   const seen = createBoundedSet(500);
-  let primed = false;
+  const primed = new Set();
   let timer = 0;
   let running = false;
 
@@ -82,37 +125,52 @@ export function createChatPoll({ onMessages }) {
     }
   }
 
-  async function tick() {
-    if (running) return;
+  async function pollRoom(room, current) {
+    const html = await fetchChatHtml(room);
+    if (!html) return;
 
-    if (!shouldPollChat(chatPollState())) {
-      remember(queryMessages());
-      primed = true;
+    const parsed = messagesFromChatHtml(html);
+    const label = channelLabel(room);
+    if (label && room !== current) {
+      for (const message of parsed) message.dataset.fcsRoom = label;
+    }
+
+    if (!primed.has(room)) {
+      remember(parsed);
+      if (room === current) remember(queryMessages());
+      primed.add(room);
       return;
     }
 
-    const room = readChatRoom();
-    if (!room) return;
+    const fresh = unseenMessages(seen, parsed);
+    if (fresh.length === 0) return;
+    remember(fresh);
+    onMessages(fresh, []);
+  }
+
+  async function tick() {
+    if (running) return;
+
+    const hidden = shouldPollChat(chatPollState());
+    if (!hidden) remember(queryMessages());
+
+    const current = readChatRoom().trim().toLowerCase();
+    const rooms = roomsToPoll({
+      currentRoom: current,
+      watchedRoom: readWatched(),
+      chatHidden: hidden,
+    });
+    if (rooms.length === 0) return;
 
     running = true;
     try {
-      const html = await fetchChatHtml(room);
-      if (!html) return;
-
-      const parsed = messagesFromChatHtml(html);
-      if (!primed) {
-        remember(queryMessages());
-        remember(parsed);
-        primed = true;
-        return;
+      for (const room of rooms) {
+        try {
+          await pollRoom(room, current);
+        } catch (error) {
+          log.error("chat poll failed", room, error);
+        }
       }
-
-      const fresh = unseenMessages(seen, parsed);
-      if (fresh.length === 0) return;
-      remember(fresh);
-      onMessages(fresh, []);
-    } catch (error) {
-      log.error("chat poll failed", error);
     } finally {
       running = false;
     }

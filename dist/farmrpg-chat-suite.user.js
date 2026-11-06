@@ -143,6 +143,29 @@
   // src/core/chat-poll.js
   var POLL_MS = 4e3;
   var ROOM_SELECTORS = ["#chatroom_mobile", "#chatroom_desktop", "input.chatroom"];
+  var CHAT_CHANNELS = [
+    ["help", "Help"],
+    ["global", "Global"],
+    ["spoilers", "Spoilers"],
+    ["trivia", "Trivia"],
+    ["giveaways", "Giveaways"],
+    ["trade", "Trade"]
+  ];
+  function normalizeWatchedChannel(value) {
+    const id = String(value || "").trim().toLowerCase();
+    return CHAT_CHANNELS.some(([room]) => room === id) ? id : "";
+  }
+  function channelLabel(id) {
+    return CHAT_CHANNELS.find(([room]) => room === id)?.[1] || "";
+  }
+  function roomsToPoll({ currentRoom, watchedRoom, chatHidden }) {
+    const current = String(currentRoom || "").trim().toLowerCase();
+    const watched = normalizeWatchedChannel(watchedRoom);
+    const rooms = [];
+    if (chatHidden && current) rooms.push(current);
+    if (watched && watched !== current) rooms.push(watched);
+    return rooms;
+  }
   function shouldPollChat({ desktopVisible, panelOpen }) {
     if (desktopVisible || panelOpen) return false;
     return true;
@@ -176,9 +199,9 @@
       panelOpen: !!panel && panel.classList.contains("active")
     };
   }
-  function createChatPoll({ onMessages }) {
+  function createChatPoll({ onMessages, readWatched = () => "" }) {
     const seen2 = createBoundedSet(500);
-    let primed = false;
+    const primed = /* @__PURE__ */ new Set();
     let timer = 0;
     let running = false;
     function remember(messages) {
@@ -187,32 +210,45 @@
         if (id) seen2.add(id);
       }
     }
-    async function tick() {
-      if (running) return;
-      if (!shouldPollChat(chatPollState())) {
-        remember(queryMessages());
-        primed = true;
+    async function pollRoom(room, current) {
+      const html = await fetchChatHtml(room);
+      if (!html) return;
+      const parsed = messagesFromChatHtml(html);
+      const label = channelLabel(room);
+      if (label && room !== current) {
+        for (const message of parsed) message.dataset.fcsRoom = label;
+      }
+      if (!primed.has(room)) {
+        remember(parsed);
+        if (room === current) remember(queryMessages());
+        primed.add(room);
         return;
       }
-      const room = readChatRoom();
-      if (!room) return;
+      const fresh = unseenMessages(seen2, parsed);
+      if (fresh.length === 0) return;
+      remember(fresh);
+      onMessages(fresh, []);
+    }
+    async function tick() {
+      if (running) return;
+      const hidden = shouldPollChat(chatPollState());
+      if (!hidden) remember(queryMessages());
+      const current = readChatRoom().trim().toLowerCase();
+      const rooms = roomsToPoll({
+        currentRoom: current,
+        watchedRoom: readWatched(),
+        chatHidden: hidden
+      });
+      if (rooms.length === 0) return;
       running = true;
       try {
-        const html = await fetchChatHtml(room);
-        if (!html) return;
-        const parsed = messagesFromChatHtml(html);
-        if (!primed) {
-          remember(queryMessages());
-          remember(parsed);
-          primed = true;
-          return;
+        for (const room of rooms) {
+          try {
+            await pollRoom(room, current);
+          } catch (error) {
+            log.error("chat poll failed", room, error);
+          }
         }
-        const fresh = unseenMessages(seen2, parsed);
-        if (fresh.length === 0) return;
-        remember(fresh);
-        onMessages(fresh, []);
-      } catch (error) {
-        log.error("chat poll failed", error);
       } finally {
         running = false;
       }
@@ -324,7 +360,8 @@
     keywords: "farmrpg_chat_keywords",
     phrases: "frpgqp_phrases_v1",
     lastValues: "frpgqp_lastvalues_v1",
-    enabled: "fcs_enabled_v1"
+    enabled: "fcs_enabled_v1",
+    watchedChannel: "fcs_watch_channel_v1"
   };
   function browserStorage() {
     try {
@@ -622,7 +659,9 @@ ${items.join("\n")}`;
           log.info("Repeat sale suppressed", seller);
           continue;
         }
-        ctx.notify(`Keyword Alert: "${keyword}"`, messageAuthor(message));
+        const room = message.dataset?.fcsRoom;
+        const title = room ? `Keyword Alert: "${keyword}" \xB7 ${room}` : `Keyword Alert: "${keyword}"`;
+        ctx.notify(title, messageAuthor(message));
         ctx.markUnread?.(id);
         log.info("Keyword match", keyword);
       }
@@ -663,7 +702,9 @@ ${items.join("\n")}`;
         if (seen.has(id)) continue;
         seen.add(id);
         const author = messageAuthor(message);
-        ctx.notify("You were mentioned!", `${author}: ${text.slice(0, 100)}`);
+        const room = message.dataset?.fcsRoom;
+        const title = room ? `You were mentioned! \xB7 ${room}` : "You were mentioned!";
+        ctx.notify(title, `${author}: ${text.slice(0, 100)}`);
         ctx.markUnread?.(id);
         log.info("Mention detected", author);
       }
@@ -1800,10 +1841,33 @@ ${items.join("\n")}`;
     menu.style.left = `${left}px`;
     menu.style.top = `${Math.max(margin, limit - height - margin)}px`;
   }
+  function buildWatchControl(ctx) {
+    const saved = normalizeWatchedChannel(ctx.storage.get(keys.watchedChannel));
+    const field = el("label", "fcs-menu-watch");
+    field.appendChild(el("span", "fcs-menu-label", "Watched channel"));
+    field.appendChild(el("span", "fcs-menu-hint", "Keeps alerting while you are in another room"));
+    const select = el("select", "fcs-menu-field");
+    select.appendChild(option("", "Current room"));
+    for (const [id, label] of CHAT_CHANNELS) select.appendChild(option(id, label));
+    select.value = saved;
+    select.addEventListener("change", () => {
+      const next = normalizeWatchedChannel(select.value);
+      if (next) ctx.storage.set(keys.watchedChannel, next);
+      else ctx.storage.remove(keys.watchedChannel);
+    });
+    field.appendChild(select);
+    return field;
+  }
+  function option(value, label) {
+    const node = el("option", "", label);
+    node.value = value;
+    return node;
+  }
   function buildMenu(features2, ctx) {
     const root = el("div", "fcs-panel fcs-menu");
     root.hidden = true;
     root.appendChild(el("div", "fcs-menu-title", "Chat Suite"));
+    root.appendChild(buildWatchControl(ctx));
     const rows = [];
     let username = null;
     let keywords2 = null;
@@ -1884,7 +1948,7 @@ ${items.join("\n")}`;
     root.appendChild(footer);
     root.appendChild(status);
     root.addEventListener("mousedown", (event) => {
-      if (!event.target.closest("input, textarea, button")) event.preventDefault();
+      if (!event.target.closest("input, textarea, button, select")) event.preventDefault();
     });
     document.body.appendChild(root);
     return api;
@@ -1894,7 +1958,7 @@ ${items.join("\n")}`;
   var tokens_default = '/*\n  Color tokens for every feature. Edit this file only.\n  theme.js sets data-fcs-theme="light|dark" on <html> from the page background.\n  One accent (harvest orange) covers actions, your messages, pins, and the session mark.\n  Item alerts use the leaf green. Danger is only for delete and reset.\n*/\n\n:root,\n:root[data-fcs-theme="light"] {\n  color-scheme: light;\n  --fcs-font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;\n  --fcs-radius-sm: 4px;\n  --fcs-radius: 6px;\n  --fcs-radius-lg: 10px;\n\n  --fcs-surface: #f6f3ec;\n  --fcs-raised: #fffcf8;\n  --fcs-raised-hover: #efeae1;\n  --fcs-border: #ddd4c6;\n  --fcs-shadow: 0 6px 24px rgba(48, 36, 16, 0.14);\n  --fcs-overlay: #fffcf8;\n  --fcs-overlay-border: #d5ccbe;\n\n  --fcs-text: #241f18;\n  --fcs-muted: #6f675c;\n\n  --fcs-accent: #f97316;\n  --fcs-accent-text: #c2410c;\n  --fcs-on-accent: #1c140c;\n  --fcs-accent-soft: rgba(249, 115, 22, 0.16);\n\n  --fcs-danger: #b42318;\n  --fcs-danger-solid: #9f2d22;\n  --fcs-on-danger: #fff;\n  --fcs-danger-soft: rgba(180, 35, 24, 0.12);\n\n  --fcs-keyword: #2f6b45;\n  --fcs-on-keyword: #fff;\n  --fcs-keyword-soft: rgba(47, 107, 69, 0.14);\n}\n\n:root[data-fcs-theme="dark"] {\n  color-scheme: dark;\n  --fcs-font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;\n  --fcs-radius-sm: 4px;\n  --fcs-radius: 6px;\n  --fcs-radius-lg: 10px;\n\n  --fcs-surface: #262e29;\n  --fcs-raised: #313b35;\n  --fcs-raised-hover: #3a463f;\n  --fcs-border: #46534b;\n  --fcs-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);\n  --fcs-overlay: #313b35;\n  --fcs-overlay-border: #46534b;\n\n  --fcs-text: #eef2e8;\n  --fcs-muted: #a9b6a6;\n\n  --fcs-accent: #fb7a24;\n  --fcs-accent-text: #fb7a24;\n  --fcs-on-accent: #1d1a14;\n  --fcs-accent-soft: rgba(251, 122, 36, 0.18);\n\n  --fcs-danger: #f08a7d;\n  --fcs-danger-solid: #9f2d22;\n  --fcs-on-danger: #fff;\n  --fcs-danger-soft: rgba(240, 138, 125, 0.16);\n\n  --fcs-keyword: #9dcc8a;\n  --fcs-on-keyword: #142016;\n  --fcs-keyword-soft: rgba(157, 204, 138, 0.16);\n}\n';
 
   // src/ui/styles/suite.css
-  var suite_default = '.fcs-panel {\n  position: fixed;\n  z-index: 100000;\n  box-sizing: border-box;\n  background: var(--fcs-surface);\n  color: var(--fcs-text);\n  border: 1px solid var(--fcs-border);\n  border-radius: var(--fcs-radius-lg);\n  box-shadow: var(--fcs-shadow);\n  font-family: var(--fcs-font);\n  font-size: 13px;\n}\n\n.fcs-menu {\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n  width: min(300px, calc(100vw - 16px));\n  max-height: min(70vh, calc(100vh - 80px));\n  overflow-y: auto;\n  padding: 10px;\n}\n\n.fcs-menu[hidden] {\n  display: none;\n}\n\n.fcs-menu-title {\n  font-size: 13px;\n  font-weight: 600;\n}\n\n.fcs-menu-field {\n  box-sizing: border-box;\n  width: 100%;\n  padding: 6px 8px;\n  font: inherit;\n  font-size: 12px;\n  color: var(--fcs-text);\n  background: var(--fcs-raised);\n  border: 1px solid var(--fcs-border);\n  border-radius: var(--fcs-radius);\n}\n\n.fcs-menu-row {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  padding: 6px 2px;\n  cursor: pointer;\n}\n\n.fcs-menu-copy {\n  display: flex;\n  flex-direction: column;\n  gap: 2px;\n  min-width: 0;\n  flex: 1;\n}\n\n.fcs-menu-label {\n  font-size: 13px;\n  font-weight: 600;\n}\n\n.fcs-menu-hint {\n  font-size: 11px;\n  color: var(--fcs-muted);\n}\n\n.fcs-switch {\n  appearance: none;\n  flex-shrink: 0;\n  width: 36px;\n  height: 22px;\n  margin: 0;\n  border-radius: 999px;\n  background: var(--fcs-border);\n  position: relative;\n  cursor: pointer;\n}\n\n.fcs-switch::after {\n  content: "";\n  position: absolute;\n  top: 3px;\n  left: 3px;\n  width: 16px;\n  height: 16px;\n  border-radius: 50%;\n  background: var(--fcs-raised);\n  transition: transform 0.15s ease;\n}\n\n.fcs-switch:checked {\n  background: var(--fcs-accent);\n}\n\n.fcs-switch:checked::after {\n  transform: translateX(14px);\n}\n\n.fcs-switch:focus-visible {\n  outline: 2px solid var(--fcs-accent-text);\n  outline-offset: 2px;\n}\n\n.fcs-menu-footer {\n  display: flex;\n  justify-content: flex-end;\n  padding-top: 4px;\n  border-top: 1px solid var(--fcs-border);\n}\n\n.fcs-menu-status {\n  min-height: 14px;\n  font-size: 11px;\n  color: var(--fcs-accent-text);\n}\n\n.fcs-menu-status:empty {\n  display: none;\n}\n\n#bottom a.fcs-menu-btn.is-open {\n  box-shadow: inset 0 -3px 0 var(--fcs-accent);\n}\n\n#bottom .fcs-has-unread {\n  position: relative;\n}\n\n.fcs-unread {\n  position: absolute;\n  top: 1px;\n  right: 1px;\n  min-width: 16px;\n  height: 16px;\n  padding: 0 4px;\n  box-sizing: border-box;\n  border-radius: 999px;\n  background: var(--fcs-accent);\n  color: var(--fcs-on-accent);\n  font-family: var(--fcs-font);\n  font-size: 10px;\n  font-weight: 700;\n  line-height: 16px;\n  text-align: center;\n  pointer-events: none;\n  z-index: 2;\n}\n\n.fcs-unread[hidden] {\n  display: none;\n}\n\n.navbar .fcs-active {\n  display: inline-block;\n  max-width: 34vw;\n  margin-right: 8px;\n  overflow: hidden;\n  color: var(--fcs-accent);\n  font-family: var(--fcs-font);\n  font-size: 11px;\n  font-weight: 600;\n  line-height: 1.2;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n  vertical-align: middle;\n}\n\n.navbar .fcs-active[hidden] {\n  display: none;\n}\n\n.chat-txt.fcs-own {\n  border: 3px solid var(--fcs-accent-text);\n  border-radius: var(--fcs-radius);\n  padding: 2px;\n}\n\n.chat-txt.fcs-keyword {\n  border-left: 4px solid var(--fcs-keyword);\n  background-color: var(--fcs-keyword-soft);\n  padding-left: 8px;\n}\n\n.chat-txt.fcs-pin-target {\n  position: relative;\n}\n\n.chat-txt.fcs-pinned {\n  background-color: var(--fcs-accent-soft);\n  border: 3px solid var(--fcs-accent-text);\n  border-radius: var(--fcs-radius);\n  padding: 4px;\n}\n\n.chat-txt > button.fcs-pin-btn {\n  position: absolute;\n  right: 4px;\n  top: 4px;\n  width: auto;\n  min-width: 32px;\n  min-height: 32px;\n  margin: 0;\n  background: var(--fcs-overlay);\n  border: 1px solid var(--fcs-overlay-border);\n  border-radius: var(--fcs-radius-sm);\n  padding: 2px 6px;\n  cursor: pointer;\n  font-size: 14px;\n  line-height: 1;\n  opacity: 0.7;\n  z-index: 10;\n  transition: opacity 0.2s, transform 0.2s;\n}\n\n.chat-txt > button.fcs-pin-btn:hover,\n.chat-txt > button.fcs-pin-btn.is-on {\n  opacity: 1;\n}\n\n.chat-txt > button.fcs-pin-btn:hover {\n  transform: scale(1.1);\n}\n\n.fcs-keyword-badge {\n  display: inline-block;\n  background: var(--fcs-keyword);\n  color: var(--fcs-on-keyword);\n  font-size: 10px;\n  padding: 2px 6px;\n  border-radius: var(--fcs-radius-sm);\n  margin-left: 8px;\n  font-weight: bold;\n}\n\n.chat-txt .chip-label .fcs-keyword-badge {\n  flex: 0 0 auto;\n  align-self: center;\n  vertical-align: middle;\n}\n\n.fcs-separator {\n  text-align: center;\n  margin: 12px 0;\n  font-size: 12px;\n  color: var(--fcs-accent-text);\n  font-weight: bold;\n  opacity: 0.9;\n  padding: 4px 0;\n}\n';
+  var suite_default = '.fcs-panel {\n  position: fixed;\n  z-index: 100000;\n  box-sizing: border-box;\n  background: var(--fcs-surface);\n  color: var(--fcs-text);\n  border: 1px solid var(--fcs-border);\n  border-radius: var(--fcs-radius-lg);\n  box-shadow: var(--fcs-shadow);\n  font-family: var(--fcs-font);\n  font-size: 13px;\n}\n\n.fcs-menu {\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n  width: min(300px, calc(100vw - 16px));\n  max-height: min(70vh, calc(100vh - 80px));\n  overflow-y: auto;\n  padding: 10px;\n}\n\n.fcs-menu[hidden] {\n  display: none;\n}\n\n.fcs-menu-title {\n  font-size: 13px;\n  font-weight: 600;\n}\n\n.fcs-menu-watch {\n  display: flex;\n  flex-direction: column;\n  gap: 2px;\n}\n\n.fcs-menu-watch .fcs-menu-label {\n  font-size: 12px;\n}\n\n.fcs-menu-field {\n  box-sizing: border-box;\n  width: 100%;\n  padding: 6px 8px;\n  font: inherit;\n  font-size: 12px;\n  color: var(--fcs-text);\n  background: var(--fcs-raised);\n  border: 1px solid var(--fcs-border);\n  border-radius: var(--fcs-radius);\n}\n\n.fcs-menu-row {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  padding: 6px 2px;\n  cursor: pointer;\n}\n\n.fcs-menu-copy {\n  display: flex;\n  flex-direction: column;\n  gap: 2px;\n  min-width: 0;\n  flex: 1;\n}\n\n.fcs-menu-label {\n  font-size: 13px;\n  font-weight: 600;\n}\n\n.fcs-menu-hint {\n  font-size: 11px;\n  color: var(--fcs-muted);\n}\n\n.fcs-switch {\n  appearance: none;\n  flex-shrink: 0;\n  width: 36px;\n  height: 22px;\n  margin: 0;\n  border-radius: 999px;\n  background: var(--fcs-border);\n  position: relative;\n  cursor: pointer;\n}\n\n.fcs-switch::after {\n  content: "";\n  position: absolute;\n  top: 3px;\n  left: 3px;\n  width: 16px;\n  height: 16px;\n  border-radius: 50%;\n  background: var(--fcs-raised);\n  transition: transform 0.15s ease;\n}\n\n.fcs-switch:checked {\n  background: var(--fcs-accent);\n}\n\n.fcs-switch:checked::after {\n  transform: translateX(14px);\n}\n\n.fcs-switch:focus-visible {\n  outline: 2px solid var(--fcs-accent-text);\n  outline-offset: 2px;\n}\n\n.fcs-menu-footer {\n  display: flex;\n  justify-content: flex-end;\n  padding-top: 4px;\n  border-top: 1px solid var(--fcs-border);\n}\n\n.fcs-menu-status {\n  min-height: 14px;\n  font-size: 11px;\n  color: var(--fcs-accent-text);\n}\n\n.fcs-menu-status:empty {\n  display: none;\n}\n\n#bottom a.fcs-menu-btn.is-open {\n  box-shadow: inset 0 -3px 0 var(--fcs-accent);\n}\n\n#bottom .fcs-has-unread {\n  position: relative;\n}\n\n.fcs-unread {\n  position: absolute;\n  top: 1px;\n  right: 1px;\n  min-width: 16px;\n  height: 16px;\n  padding: 0 4px;\n  box-sizing: border-box;\n  border-radius: 999px;\n  background: var(--fcs-accent);\n  color: var(--fcs-on-accent);\n  font-family: var(--fcs-font);\n  font-size: 10px;\n  font-weight: 700;\n  line-height: 16px;\n  text-align: center;\n  pointer-events: none;\n  z-index: 2;\n}\n\n.fcs-unread[hidden] {\n  display: none;\n}\n\n.navbar .fcs-active {\n  display: inline-block;\n  max-width: 34vw;\n  margin-right: 8px;\n  overflow: hidden;\n  color: var(--fcs-accent);\n  font-family: var(--fcs-font);\n  font-size: 11px;\n  font-weight: 600;\n  line-height: 1.2;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n  vertical-align: middle;\n}\n\n.navbar .fcs-active[hidden] {\n  display: none;\n}\n\n.chat-txt.fcs-own {\n  border: 3px solid var(--fcs-accent-text);\n  border-radius: var(--fcs-radius);\n  padding: 2px;\n}\n\n.chat-txt.fcs-keyword {\n  border-left: 4px solid var(--fcs-keyword);\n  background-color: var(--fcs-keyword-soft);\n  padding-left: 8px;\n}\n\n.chat-txt.fcs-pin-target {\n  position: relative;\n}\n\n.chat-txt.fcs-pinned {\n  background-color: var(--fcs-accent-soft);\n  border: 3px solid var(--fcs-accent-text);\n  border-radius: var(--fcs-radius);\n  padding: 4px;\n}\n\n.chat-txt > button.fcs-pin-btn {\n  position: absolute;\n  right: 4px;\n  top: 4px;\n  width: auto;\n  min-width: 32px;\n  min-height: 32px;\n  margin: 0;\n  background: var(--fcs-overlay);\n  border: 1px solid var(--fcs-overlay-border);\n  border-radius: var(--fcs-radius-sm);\n  padding: 2px 6px;\n  cursor: pointer;\n  font-size: 14px;\n  line-height: 1;\n  opacity: 0.7;\n  z-index: 10;\n  transition: opacity 0.2s, transform 0.2s;\n}\n\n.chat-txt > button.fcs-pin-btn:hover,\n.chat-txt > button.fcs-pin-btn.is-on {\n  opacity: 1;\n}\n\n.chat-txt > button.fcs-pin-btn:hover {\n  transform: scale(1.1);\n}\n\n.fcs-keyword-badge {\n  display: inline-block;\n  background: var(--fcs-keyword);\n  color: var(--fcs-on-keyword);\n  font-size: 10px;\n  padding: 2px 6px;\n  border-radius: var(--fcs-radius-sm);\n  margin-left: 8px;\n  font-weight: bold;\n}\n\n.chat-txt .chip-label .fcs-keyword-badge {\n  flex: 0 0 auto;\n  align-self: center;\n  vertical-align: middle;\n}\n\n.fcs-separator {\n  text-align: center;\n  margin: 12px 0;\n  font-size: 12px;\n  color: var(--fcs-accent-text);\n  font-weight: bold;\n  opacity: 0.9;\n  padding: 4px 0;\n}\n';
 
   // src/ui/styles/quick-chat.css
   var quick_chat_default = ".fcs-qc-row {\n  list-style: none;\n  padding: 2px 15px 6px;\n}\n\n.fcs-qc-open {\n  width: 100%;\n  padding: 5px 8px;\n  font-size: 12px;\n  font-family: inherit;\n  color: var(--fcs-text);\n  background: var(--fcs-surface);\n  border: 1px solid var(--fcs-border);\n  border-left: 3px solid var(--fcs-accent-text);\n  border-radius: 6px;\n  cursor: pointer;\n}\n\n.fcs-qc-open:hover {\n  background: var(--fcs-raised);\n}\n\n#fcs-qc-popup {\n  display: none;\n  flex-direction: column;\n  gap: 6px;\n  width: min(360px, calc(100vw - 16px));\n  max-height: min(70vh, 520px);\n  padding: 8px;\n  outline: none;\n}\n\n#fcs-qc-popup button:focus-visible,\n#fcs-qc-popup input:focus-visible,\n#fcs-qc-popup textarea:focus-visible,\n.fcs-qc-open:focus-visible {\n  outline: 2px solid var(--fcs-accent-text);\n  outline-offset: 1px;\n}\n\n.fcs-qc-header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 6px;\n  padding-bottom: 6px;\n  border-bottom: 1px solid var(--fcs-border);\n}\n\n.fcs-qc-title {\n  color: var(--fcs-text);\n  font-size: 13px;\n  font-weight: 600;\n}\n\n.fcs-qc-header-actions {\n  display: flex;\n  gap: 4px;\n}\n\n.fcs-qc-btn {\n  padding: 3px 7px;\n  font-size: 11px;\n  font-family: inherit;\n  color: var(--fcs-text);\n  background: var(--fcs-raised);\n  border: 1px solid var(--fcs-border);\n  border-radius: 5px;\n  cursor: pointer;\n  white-space: nowrap;\n}\n\n.fcs-qc-btn:hover {\n  background: var(--fcs-raised-hover);\n}\n\n.fcs-qc-btn:disabled {\n  opacity: 0.35;\n  cursor: default;\n}\n\n.fcs-qc-btn-primary {\n  color: var(--fcs-on-accent);\n  background: var(--fcs-accent);\n  border-color: var(--fcs-accent);\n  font-weight: 600;\n}\n\n.fcs-qc-btn-primary:hover {\n  background: var(--fcs-accent);\n  filter: brightness(1.1);\n}\n\n.fcs-qc-btn-danger {\n  color: var(--fcs-danger);\n  border-color: var(--fcs-danger);\n  background: transparent;\n}\n\n.fcs-qc-btn-danger:hover {\n  background: var(--fcs-danger-soft);\n}\n\n.fcs-qc-btn-ghost {\n  background: none;\n  border-color: transparent;\n  color: var(--fcs-muted);\n}\n\n.fcs-qc-list {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  min-height: 0;\n  overflow-y: auto;\n}\n\n.fcs-qc-empty {\n  color: var(--fcs-muted);\n  font-size: 12px;\n  font-style: italic;\n  padding: 4px 2px;\n}\n\n.fcs-qc-item {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  min-width: 0;\n  padding: 6px 8px;\n  text-align: left;\n  font-family: inherit;\n  color: var(--fcs-text);\n  background: var(--fcs-raised);\n  border: 1px solid var(--fcs-border);\n  border-left: 3px solid transparent;\n  border-radius: 6px;\n  cursor: pointer;\n}\n\n.fcs-qc-item:hover {\n  background: var(--fcs-raised-hover);\n  border-left-color: var(--fcs-accent-text);\n}\n\n.fcs-qc-num {\n  flex-shrink: 0;\n  width: 16px;\n  font-size: 10px;\n  line-height: 16px;\n  text-align: center;\n  color: var(--fcs-muted);\n  border: 1px solid var(--fcs-border);\n  border-radius: 4px;\n}\n\n.fcs-qc-num-hidden {\n  visibility: hidden;\n}\n\n.fcs-qc-item-body {\n  display: flex;\n  flex-direction: column;\n  gap: 2px;\n  flex: 1;\n  min-width: 0;\n}\n\n.fcs-qc-item-top {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  min-width: 0;\n}\n\n.fcs-qc-item-title {\n  min-width: 0;\n  font-size: 12px;\n  font-weight: 600;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.fcs-qc-tag {\n  margin-left: auto;\n  flex-shrink: 0;\n  padding: 0 6px;\n  font-size: 10px;\n  color: var(--fcs-accent-text);\n  border: 1px solid var(--fcs-accent-text);\n  border-radius: 8px;\n}\n\n.fcs-qc-item-text {\n  display: block;\n  font-size: 12px;\n  color: var(--fcs-muted);\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.fcs-qc-edit-row {\n  display: flex;\n  flex-wrap: wrap;\n  align-items: center;\n  gap: 6px;\n  padding: 4px 6px;\n  background: var(--fcs-raised);\n  border: 1px solid var(--fcs-border);\n  border-radius: 6px;\n}\n\n.fcs-qc-edit-label {\n  flex: 1 1 100px;\n  min-width: 0;\n  font-size: 12px;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.fcs-qc-edit-actions {\n  display: flex;\n  gap: 3px;\n  flex-shrink: 0;\n}\n\n.fcs-qc-form {\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n  min-height: 0;\n  overflow-y: auto;\n}\n\n.fcs-qc-form-heading {\n  font-size: 12px;\n  font-weight: 600;\n  color: var(--fcs-text);\n}\n\n.fcs-qc-field {\n  box-sizing: border-box;\n  width: 100%;\n  padding: 5px 7px;\n  font-size: 12px;\n  font-family: inherit;\n  color: var(--fcs-text);\n  background: var(--fcs-raised);\n  border: 1px solid var(--fcs-border);\n  border-radius: 5px;\n}\n\n.fcs-qc-textarea {\n  resize: vertical;\n}\n\n.fcs-qc-form-actions,\n.fcs-qc-footer {\n  display: flex;\n  gap: 4px;\n}\n\n.fcs-qc-footer {\n  padding-top: 6px;\n  border-top: 1px solid var(--fcs-border);\n}\n\n.fcs-qc-fill-row {\n  display: flex;\n  flex-direction: column;\n  gap: 3px;\n}\n\n.fcs-qc-fill-label {\n  font-size: 11px;\n  color: var(--fcs-muted);\n}\n\n.fcs-qc-preview {\n  padding: 6px 8px;\n  font-size: 12px;\n  color: var(--fcs-text);\n  background: var(--fcs-raised);\n  border: 1px dashed var(--fcs-border);\n  border-radius: 5px;\n  word-break: break-word;\n}\n\n.fcs-qc-hint {\n  font-size: 11px;\n  color: var(--fcs-muted);\n}\n\n.fcs-qc-status {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  min-height: 14px;\n  font-size: 11px;\n  color: var(--fcs-accent-text);\n}\n\n.fcs-qc-status:empty {\n  display: none;\n}\n";
@@ -2091,7 +2155,10 @@ ${quick_chat_default}`;
         }
       }
     }
-    const poll = createChatPoll({ onMessages: deliver });
+    const poll = createChatPoll({
+      onMessages: deliver,
+      readWatched: () => normalizeWatchedChannel(storage.get(keys.watchedChannel))
+    });
     const watcher = createChatWatcher(
       (messages, mutations) => {
         poll.remember(messages);

@@ -1,3 +1,4 @@
+import { CHAT_CHANNELS, normalizeWatchedChannel } from "../core/chat-poll.js";
 import { keys } from "../core/storage.js";
 import { onDocumentMutations } from "../core/dom-observer.js";
 import { button, el } from "./dom.js";
@@ -226,10 +227,37 @@ function position(menu, anchor) {
   menu.style.top = `${Math.max(margin, limit - height - margin)}px`;
 }
 
+function buildWatchControl(ctx) {
+  const saved = normalizeWatchedChannel(ctx.storage.get(keys.watchedChannel));
+  const field = el("label", "fcs-menu-watch");
+  field.appendChild(el("span", "fcs-menu-label", "Watched channel"));
+  field.appendChild(el("span", "fcs-menu-hint", "Keeps alerting while you are in another room"));
+
+  const select = el("select", "fcs-menu-field");
+  select.appendChild(option("", "Current room"));
+  for (const [id, label] of CHAT_CHANNELS) select.appendChild(option(id, label));
+  select.value = saved;
+  select.addEventListener("change", () => {
+    const next = normalizeWatchedChannel(select.value);
+    if (next) ctx.storage.set(keys.watchedChannel, next);
+    else ctx.storage.remove(keys.watchedChannel);
+  });
+
+  field.appendChild(select);
+  return field;
+}
+
+function option(value, label) {
+  const node = el("option", "", label);
+  node.value = value;
+  return node;
+}
+
 function buildMenu(features, ctx) {
   const root = el("div", "fcs-panel fcs-menu");
   root.hidden = true;
   root.appendChild(el("div", "fcs-menu-title", "Chat Suite"));
+  root.appendChild(buildWatchControl(ctx));
 
   const rows = [];
   let username = null;
@@ -319,7 +347,7 @@ function buildMenu(features, ctx) {
   root.appendChild(status);
 
   root.addEventListener("mousedown", (event) => {
-    if (!event.target.closest("input, textarea, button")) event.preventDefault();
+    if (!event.target.closest("input, textarea, button, select")) event.preventDefault();
   });
 
   document.body.appendChild(root);

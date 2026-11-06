@@ -1,9 +1,9 @@
-import { createChatPoll } from "./core/chat-poll.js";
+import { createChatPoll, normalizeWatchedChannel } from "./core/chat-poll.js";
 import { createChatWatcher } from "./core/dom-observer.js";
 import { createIdentity } from "./core/identity.js";
 import { log } from "./core/log.js";
 import { ensureNotificationPermission, notify } from "./core/notifications.js";
-import { storage } from "./core/storage.js";
+import { keys, storage } from "./core/storage.js";
 import { features } from "./features/index.js";
 import { mountControlPanel } from "./ui/control-panel.js";
 import { injectStyles } from "./ui/styles.js";
@@ -30,7 +30,10 @@ function boot() {
     }
   }
 
-  const poll = createChatPoll({ onMessages: deliver });
+  const poll = createChatPoll({
+    onMessages: deliver,
+    readWatched: () => normalizeWatchedChannel(storage.get(keys.watchedChannel)),
+  });
 
   const watcher = createChatWatcher(
     (messages, mutations) => {

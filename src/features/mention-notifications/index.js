@@ -42,7 +42,9 @@ export const mentionNotifications = defineFeature({
       seen.add(id);
 
       const author = messageAuthor(message);
-      ctx.notify("You were mentioned!", `${author}: ${text.slice(0, 100)}`);
+      const room = message.dataset?.fcsRoom;
+      const title = room ? `You were mentioned! · ${room}` : "You were mentioned!";
+      ctx.notify(title, `${author}: ${text.slice(0, 100)}`);
       ctx.markUnread?.(id);
       log.info("Mention detected", author);
     }

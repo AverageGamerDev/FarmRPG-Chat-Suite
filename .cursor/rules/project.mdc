@@ -17,7 +17,7 @@ This file is the map. Open one row below. Do not scan the repo, `ref/`, `dist/`,
 | Add or reorder a tool | `src/features/index.js`, contract in `src/core/feature.js` |
 | Chat DOM | `src/core/chat.js` (shape is the file header). Desktop `#chatzoneDesktop` and mobile `#chatzoneMobile` (inside `#mobilechatpanel`) are both live. Composer includes `#chat_message_compact` |
 | Page re-renders | `src/core/dom-observer.js`. Watch every zone that is present, including one the layout has hidden |
-| Chat while the mobile panel is closed | `src/core/chat-poll.js`. Poll `worker.php?go=getchat`. Alerts run on new rows. The session anchor waits until a connected zone redraws |
+| Chat while the mobile panel is closed | `src/core/chat-poll.js`. Poll `worker.php?go=getchat`. Alerts run on new rows. A saved watched channel is polled while the player is in another room. The session anchor waits until a connected zone redraws |
 | Saved keys | `src/core/storage.js` |
 | Menu | `src/ui/control-panel.js` on `#bottom .footer-btn-row`. Active names go on `.navbar-inner.navbar-on-center .right`. Unread count is `src/ui/unread.js` on the bottom-bar chat button |
 | Enhancer CSS | `src/ui/styles/suite.css` |
@@ -44,7 +44,7 @@ export const myTool = defineFeature({
 
 ## Keep
 
-- Keys: `farmrpg_chat_username` (JSON string), `farmrpg_chat_keywords`, `frpgqp_phrases_v1`, `frpgqp_lastvalues_v1`. Mentions and highlight share one username.
+- Keys: `farmrpg_chat_username` (JSON string), `farmrpg_chat_keywords`, `frpgqp_phrases_v1`, `frpgqp_lastvalues_v1`, `fcs_watch_channel_v1` (room id, or absent to follow the room on screen). Mentions and highlight share one username.
 - Item keywords match `<img alt>` in the message body, not free text. On mobile the badge sits in `.chip-label`. The same seller posting the same items again stays quiet for 5 minutes. The row still highlights.
 - The author name is the profile link in message child 2. A chip level such as `[200]` is not the name.
 - Pins and the separator anchor are in-memory. The separator anchor is per zone. A redraw that still starts with that message does not insert a line. Pins clear when the feature stops.

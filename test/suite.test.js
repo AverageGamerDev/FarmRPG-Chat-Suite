@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createBoundedSet } from "../src/core/bounded-set.js";
-import { readChatRoom, shouldPollChat, unseenMessages } from "../src/core/chat-poll.js";
+import {
+  channelLabel,
+  normalizeWatchedChannel,
+  readChatRoom,
+  roomsToPoll,
+  shouldPollChat,
+  unseenMessages,
+} from "../src/core/chat-poll.js";
 import {
   CHAT_INPUT_SELECTOR,
   findChatContainer,
@@ -108,6 +115,21 @@ test("closed mobile chat is polled and an open chat is left to the game", () => 
   assert.equal(shouldPollChat({ desktopVisible: false, panelOpen: false }), true);
   assert.equal(shouldPollChat({ desktopVisible: false, panelOpen: true }), false);
   assert.equal(shouldPollChat({ desktopVisible: true, panelOpen: false }), false);
+  assert.equal(normalizeWatchedChannel(" Trade "), "trade");
+  assert.equal(normalizeWatchedChannel("nope"), "");
+  assert.equal(channelLabel("giveaways"), "Giveaways");
+  assert.deepEqual(
+    roomsToPoll({ currentRoom: "help", watchedRoom: "trade", chatHidden: false }),
+    ["trade"],
+  );
+  assert.deepEqual(
+    roomsToPoll({ currentRoom: "trade", watchedRoom: "trade", chatHidden: true }),
+    ["trade"],
+  );
+  assert.deepEqual(
+    roomsToPoll({ currentRoom: "help", watchedRoom: "", chatHidden: true }),
+    ["help"],
+  );
 
   const room = readChatRoom({
     querySelector(selector) {
