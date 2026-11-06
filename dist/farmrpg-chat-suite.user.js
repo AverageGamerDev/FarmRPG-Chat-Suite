@@ -503,7 +503,9 @@
   // src/features/keyword-alerts/index.js
   var KEYWORD_CLASS = "fcs-keyword";
   var BADGE_CLASS = "fcs-keyword-badge";
+  var REPEAT_SALE_MS = 5 * 60 * 1e3;
   var matches = createBoundedSet(100);
+  var recentSales = /* @__PURE__ */ new Map();
   var keywords = /* @__PURE__ */ new Set();
   function extractItemNames(textContainer) {
     if (!textContainer?.children?.length) return [];
@@ -526,6 +528,27 @@
       }
     }
     return null;
+  }
+  function saleKey(author, itemNames) {
+    const who = normalizeUsername(author);
+    const items = Array.from(
+      new Set(
+        Array.from(itemNames, (name) => String(name).trim().toLowerCase()).filter(Boolean)
+      )
+    ).sort();
+    if (!who || items.length === 0) return "";
+    return `${who}
+${items.join("\n")}`;
+  }
+  function isRepeatSale(recent, key, now, windowMs = REPEAT_SALE_MS) {
+    for (const [id, at] of recent) {
+      if (now - at >= windowMs) recent.delete(id);
+    }
+    if (!key) return false;
+    const last = recent.get(key);
+    if (last != null && now - last < windowMs) return true;
+    recent.set(key, now);
+    return false;
   }
   function load(store) {
     const stored = store.getJson(keys.keywords, []);
@@ -579,6 +602,7 @@
     },
     stop() {
       matches.clear();
+      recentSales.clear();
       removeHighlights();
       log.info("Keyword watcher stopped");
     },
@@ -586,12 +610,18 @@
       if (keywords.size === 0) return;
       for (const message of messages) {
         const body = messageBody(message);
-        const keyword = matchKeyword(extractItemNames(body), keywords);
+        const names = extractItemNames(body);
+        const keyword = matchKeyword(names, keywords);
         if (!keyword) continue;
         const id = fingerprint(message);
         applyHighlight(message, keyword);
         if (matches.has(id)) continue;
         matches.add(id);
+        const seller = messageProfileName(message) || messageAuthor(message);
+        if (isRepeatSale(recentSales, saleKey(seller, names), Date.now())) {
+          log.info("Repeat sale suppressed", seller);
+          continue;
+        }
         ctx.notify(`Keyword Alert: "${keyword}"`, messageAuthor(message));
         ctx.markUnread?.(id);
         log.info("Keyword match", keyword);

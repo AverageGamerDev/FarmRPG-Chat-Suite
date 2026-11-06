@@ -19,8 +19,10 @@ import { planSessionSeparator } from "../src/features/session-markers/index.js";
 import { applyUnread, findChatOpenButton, unreadLabel } from "../src/ui/unread.js";
 import {
   extractItemNames,
+  isRepeatSale,
   matchKeyword,
   parseKeywordInput,
+  saleKey,
 } from "../src/features/keyword-alerts/index.js";
 import { mergeImported, toExportJson } from "../src/features/quick-chat/import-export.js";
 import {
@@ -245,6 +247,22 @@ test("item keywords match image names, not free text", () => {
   assert.deepEqual(extractItemNames(body), ["Dragon Egg"]);
   assert.equal(matchKeyword(extractItemNames(body), ["egg", "stone"]), "egg");
   assert.equal(matchKeyword(["Apple"], ["egg"]), null);
+});
+
+test("the same seller and items stay quiet for five minutes", () => {
+  const recent = new Map();
+  const first = saleKey("Farmer+Choupisson", ["Lemon", "Orange"]);
+  const again = saleKey("farmer choupisson", ["Orange", "Lemon"]);
+  const extra = saleKey("farmer choupisson", ["Lemon", "Rope"]);
+  const other = saleKey("Zwinkster", ["Lemon", "Orange"]);
+  assert.equal(first, again);
+
+  const start = 1_000_000;
+  assert.equal(isRepeatSale(recent, first, start), false);
+  assert.equal(isRepeatSale(recent, again, start + 4 * 60 * 1000), true);
+  assert.equal(isRepeatSale(recent, extra, start + 1000), false);
+  assert.equal(isRepeatSale(recent, other, start + 1000), false);
+  assert.equal(isRepeatSale(recent, first, start + 5 * 60 * 1000), false);
 });
 
 test("phrases round-trip through the original storage key", () => {
