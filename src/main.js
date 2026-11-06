@@ -1,3 +1,4 @@
+import { createChatPoll } from "./core/chat-poll.js";
 import { createChatWatcher } from "./core/dom-observer.js";
 import { createIdentity } from "./core/identity.js";
 import { log } from "./core/log.js";
@@ -15,16 +16,23 @@ function boot() {
     ensureNotificationPermission,
   };
 
+  function deliver(messages, mutations) {
+    for (const feature of features) {
+      if (!feature.isEnabled?.() || !feature.onMessages) continue;
+      try {
+        feature.onMessages(messages, mutations, ctx);
+      } catch (error) {
+        log.error(feature.id, error);
+      }
+    }
+  }
+
+  const poll = createChatPoll({ onMessages: deliver });
+
   const watcher = createChatWatcher(
     (messages, mutations) => {
-      for (const feature of features) {
-        if (!feature.isEnabled?.() || !feature.onMessages) continue;
-        try {
-          feature.onMessages(messages, mutations, ctx);
-        } catch (error) {
-          log.error(feature.id, error);
-        }
-      }
+      poll.remember(messages);
+      deliver(messages, mutations);
     },
     () => {
       for (const feature of features) {
@@ -39,6 +47,7 @@ function boot() {
 
   injectStyles();
   watcher.start();
+  poll.start();
 
   for (const feature of features) {
     try {

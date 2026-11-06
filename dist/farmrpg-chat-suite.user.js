@@ -15,6 +15,32 @@
 // ==/UserScript==
 
 (() => {
+  // src/core/bounded-set.js
+  function createBoundedSet(max) {
+    const values = /* @__PURE__ */ new Set();
+    return {
+      has(value) {
+        return values.has(value);
+      },
+      add(value) {
+        if (values.has(value)) return;
+        values.add(value);
+        const overflow = values.size - max;
+        if (overflow <= 0) return;
+        const iterator = values.values();
+        for (let count = 0; count < overflow; count += 1) {
+          values.delete(iterator.next().value);
+        }
+      },
+      clear() {
+        values.clear();
+      },
+      get size() {
+        return values.size;
+      }
+    };
+  }
+
   // src/core/chat.js
   var CHAT_SELECTORS = ["#chatzoneDesktop", "#chatzoneMobile"];
   var CHAT_INPUT_SELECTOR = "#chat_txt_desktop, #chat_txt_mobile, #chat_message_compact, input[id^='chat_txt_']";
@@ -113,6 +139,102 @@
       console.error(PREFIX, ...args);
     }
   };
+
+  // src/core/chat-poll.js
+  var POLL_MS = 4e3;
+  var ROOM_SELECTORS = ["#chatroom_mobile", "#chatroom_desktop", "input.chatroom"];
+  function shouldPollChat({ desktopVisible, panelOpen }) {
+    if (desktopVisible || panelOpen) return false;
+    return true;
+  }
+  function readChatRoom(root = document) {
+    for (const selector of ROOM_SELECTORS) {
+      const value = root.querySelector(selector)?.value;
+      if (value) return value;
+    }
+    return "";
+  }
+  function messagesFromChatHtml(html) {
+    const holder = document.createElement("div");
+    holder.innerHTML = html;
+    return Array.from(holder.querySelectorAll(".chat-txt"));
+  }
+  function unseenMessages(seen2, messages, fingerprintOf = fingerprint) {
+    const fresh = [];
+    for (const message of messages) {
+      const id = fingerprintOf(message);
+      if (!id || seen2.has(id)) continue;
+      fresh.push(message);
+    }
+    return fresh;
+  }
+  function chatPollState(root = document) {
+    const desktop = root.querySelector("#chatzoneDesktop");
+    const panel = root.querySelector("#mobilechatpanel");
+    return {
+      desktopVisible: !!desktop && desktop.getClientRects().length > 0,
+      panelOpen: !!panel && panel.classList.contains("active")
+    };
+  }
+  function createChatPoll({ onMessages }) {
+    const seen2 = createBoundedSet(500);
+    let primed = false;
+    let timer = 0;
+    let running = false;
+    function remember(messages) {
+      for (const message of messages) {
+        const id = fingerprint(message);
+        if (id) seen2.add(id);
+      }
+    }
+    async function tick() {
+      if (running) return;
+      if (!shouldPollChat(chatPollState())) {
+        remember(queryMessages());
+        primed = true;
+        return;
+      }
+      const room = readChatRoom();
+      if (!room) return;
+      running = true;
+      try {
+        const html = await fetchChatHtml(room);
+        if (!html) return;
+        const parsed = messagesFromChatHtml(html);
+        if (!primed) {
+          remember(queryMessages());
+          remember(parsed);
+          primed = true;
+          return;
+        }
+        const fresh = unseenMessages(seen2, parsed);
+        if (fresh.length === 0) return;
+        remember(fresh);
+        onMessages(fresh, []);
+      } catch (error) {
+        log.error("chat poll failed", error);
+      } finally {
+        running = false;
+      }
+    }
+    return {
+      remember,
+      start() {
+        remember(queryMessages());
+        tick();
+        timer = window.setInterval(tick, POLL_MS);
+      },
+      stop() {
+        window.clearInterval(timer);
+      }
+    };
+  }
+  async function fetchChatHtml(room) {
+    const url = `worker.php?go=getchat&room=${encodeURIComponent(room)}&cachebuster=${Date.now()}`;
+    const response = await fetch(url, { credentials: "include", cache: "no-store" });
+    if (!response.ok) return "";
+    return response.text();
+  }
 
   // src/core/dom-observer.js
   var listeners = /* @__PURE__ */ new Set();
@@ -342,32 +464,6 @@
     if (typeof Notification === "function" && Notification.permission === "granted") {
       new Notification(title, { body: text });
     }
-  }
-
-  // src/core/bounded-set.js
-  function createBoundedSet(max) {
-    const values = /* @__PURE__ */ new Set();
-    return {
-      has(value) {
-        return values.has(value);
-      },
-      add(value) {
-        if (values.has(value)) return;
-        values.add(value);
-        const overflow = values.size - max;
-        if (overflow <= 0) return;
-        const iterator = values.values();
-        for (let count = 0; count < overflow; count += 1) {
-          values.delete(iterator.next().value);
-        }
-      },
-      clear() {
-        values.clear();
-      },
-      get size() {
-        return values.size;
-      }
-    };
   }
 
   // src/core/feature.js
@@ -1432,6 +1528,9 @@
       return { lastKnown: newest, before: null };
     }
     const before = messages.find((message) => fingerprintOf(message) === lastKnown) ?? null;
+    if (!before || before === messages[0]) {
+      return { lastKnown: newest, before: null };
+    }
     return { lastKnown: newest, before };
   }
   function chatWasCleared(mutations) {
@@ -1464,6 +1563,7 @@
       log.info("Session separator stopped");
     },
     onMessages(messages, mutations) {
+      if (!messages[0]?.isConnected) return;
       const zone = messages[0]?.closest?.("#chatzoneDesktop, #chatzoneMobile") ?? null;
       const previous = zone ? anchors.get(zone) ?? null : fallbackAnchor;
       const plan = planSessionSeparator(
@@ -1854,16 +1954,21 @@ ${quick_chat_default}`;
       notify,
       ensureNotificationPermission
     };
+    function deliver(messages, mutations) {
+      for (const feature of features) {
+        if (!feature.isEnabled?.() || !feature.onMessages) continue;
+        try {
+          feature.onMessages(messages, mutations, ctx);
+        } catch (error) {
+          log.error(feature.id, error);
+        }
+      }
+    }
+    const poll = createChatPoll({ onMessages: deliver });
     const watcher = createChatWatcher(
       (messages, mutations) => {
-        for (const feature of features) {
-          if (!feature.isEnabled?.() || !feature.onMessages) continue;
-          try {
-            feature.onMessages(messages, mutations, ctx);
-          } catch (error) {
-            log.error(feature.id, error);
-          }
-        }
+        poll.remember(messages);
+        deliver(messages, mutations);
       },
       () => {
         for (const feature of features) {
@@ -1877,6 +1982,7 @@ ${quick_chat_default}`;
     );
     injectStyles();
     watcher.start();
+    poll.start();
     for (const feature of features) {
       try {
         feature.mount?.(ctx);

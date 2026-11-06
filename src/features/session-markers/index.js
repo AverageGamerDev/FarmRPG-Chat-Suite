@@ -7,8 +7,8 @@ const SEPARATOR_CLASS = "fcs-separator";
 /**
  * The separator marks where a redraw of the chat left off.
  * A batch that also removes nodes is treated as a chat refresh. If the message
- * we last anchored on shows up again, the divider is inserted just before it
- * ("new" rows sit on the other side of that anchor in the game's order).
+ * we last anchored on shows up again below a newer row, the divider is inserted
+ * just before it. A redraw that still starts with that same message adds nothing.
  *
  * @param {string | null} lastKnown
  * @param {Element[]} messages
@@ -23,6 +23,9 @@ export function planSessionSeparator(lastKnown, messages, chatWasCleared, finger
   }
 
   const before = messages.find((message) => fingerprintOf(message) === lastKnown) ?? null;
+  if (!before || before === messages[0]) {
+    return { lastKnown: newest, before: null };
+  }
   return { lastKnown: newest, before };
 }
 
@@ -63,6 +66,8 @@ export const sessionMarkers = defineFeature({
   },
 
   onMessages(messages, mutations) {
+    if (!messages[0]?.isConnected) return;
+
     const zone = messages[0]?.closest?.("#chatzoneDesktop, #chatzoneMobile") ?? null;
     const previous = zone ? anchors.get(zone) ?? null : fallbackAnchor;
     const plan = planSessionSeparator(

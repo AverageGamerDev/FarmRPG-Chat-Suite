@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createBoundedSet } from "../src/core/bounded-set.js";
+import { readChatRoom, shouldPollChat, unseenMessages } from "../src/core/chat-poll.js";
 import {
   CHAT_INPUT_SELECTOR,
   findChatContainer,
@@ -94,6 +95,29 @@ test("session separator anchors on the previous message only after a redraw", ()
   const firstLoad = planSessionSeparator(null, messages, true, fingerprintOf);
   assert.equal(firstLoad.before, null);
   assert.equal(firstLoad.lastKnown, "new");
+
+  const reopened = planSessionSeparator("new", messages, true, fingerprintOf);
+  assert.equal(reopened.before, null);
+  assert.equal(reopened.lastKnown, "new");
+});
+
+test("closed mobile chat is polled and an open chat is left to the game", () => {
+  assert.equal(shouldPollChat({ desktopVisible: false, panelOpen: false }), true);
+  assert.equal(shouldPollChat({ desktopVisible: false, panelOpen: true }), false);
+  assert.equal(shouldPollChat({ desktopVisible: true, panelOpen: false }), false);
+
+  const room = readChatRoom({
+    querySelector(selector) {
+      if (selector === "#chatroom_mobile") return { value: "trade" };
+      return null;
+    },
+  });
+  assert.equal(room, "trade");
+
+  const seen = createBoundedSet(10);
+  seen.add("old");
+  const fresh = unseenMessages(seen, [{ id: "old" }, { id: "new" }], (message) => message.id);
+  assert.deepEqual(fresh.map((message) => message.id), ["new"]);
 });
 
 test("desktop and mobile chat zones are both watched", () => {
