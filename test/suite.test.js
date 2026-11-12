@@ -201,16 +201,26 @@ test("mobile composer is a chat input", () => {
   assert.deepEqual(findChatInputs(root), [input]);
 });
 
-function authorNode(text, { link = false, query = null } = {}) {
+function authorNode(text, { link = false, query = null, username = "" } = {}) {
   const node = {
     textContent: text,
     children: [],
     classList: { contains: () => false },
-    matches: (selector) => link && selector.includes("user_name"),
-    querySelector: () => query,
+    matches: (selector) => {
+      if (selector.includes("data-username")) return Boolean(username);
+      return link && selector.includes("user_name");
+    },
+    getAttribute: (name) => (name === "data-username" ? username || null : null),
+    querySelector: (selector) => {
+      if (selector.includes("data-username")) {
+        return username ? { getAttribute: () => username } : null;
+      }
+      if (selector.includes("user_name") || selector.includes("profile.php")) return query;
+      return null;
+    },
     querySelectorAll: () => [],
   };
-  node.cloneNode = () => authorNode(text, { link });
+  node.cloneNode = () => authorNode(text, { link, username });
   return node;
 }
 
@@ -251,6 +261,34 @@ test("mobile chat messages keep the desktop child slots", () => {
     children: [{}, {}, authorNode("Zwinkster [1,200]")],
   };
   assert.equal(messageAuthor(plain), "Zwinkster");
+});
+
+test("the author is the chip username, not an @mention in the body", () => {
+  const mention = {
+    getAttribute: () => "profile.php?user_name=nessie",
+  };
+  const body = {
+    innerText: "@nessie",
+    textContent: "@nessie star",
+    children: [],
+  };
+  const message = {
+    children: [
+      { textContent: "10:49:41 AM" },
+      {},
+      authorNode("Chiaia", { username: "Chiaia" }),
+      {},
+      {},
+      body,
+    ],
+    querySelector: (selector) =>
+      selector.startsWith('a[href^="profile.php?user_name="]') ? mention : null,
+  };
+
+  assert.equal(messageAuthor(message), "Chiaia");
+  assert.equal(messageProfileName(message), "Chiaia");
+  assert.equal(messageText(message), "@nessie");
+  assert.equal(fingerprint(message), "10:49:41 AM:@nessie star");
 });
 
 test("item keywords match image names, not free text", () => {

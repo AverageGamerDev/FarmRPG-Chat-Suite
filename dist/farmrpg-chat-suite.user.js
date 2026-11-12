@@ -64,6 +64,31 @@
     return message.children[5] ?? null;
   }
   var AUTHOR_LINK = 'a[href*="profile.php?user_name="]';
+  var USERNAME_ATTR = "[data-username]";
+  function authorSlot(message) {
+    return message?.children?.[2] ?? null;
+  }
+  function dataUsername(node) {
+    if (!node) return "";
+    const marked2 = node.matches?.(USERNAME_ATTR) ? node : node.querySelector?.(USERNAME_ATTR);
+    const value = marked2?.getAttribute?.("data-username");
+    return value ? String(value).trim() : "";
+  }
+  function authorProfileLink(node) {
+    if (!node) return null;
+    if (node.matches?.(AUTHOR_LINK)) return node;
+    return node.querySelector?.(AUTHOR_LINK) ?? null;
+  }
+  function profileNameFromLink(link) {
+    const href = link?.getAttribute?.("href") || "";
+    const match = href.match(/user_name=(.+)$/);
+    if (!match) return null;
+    try {
+      return decodeURIComponent(match[1]);
+    } catch {
+      return match[1];
+    }
+  }
   function authorLabel(node) {
     if (!node) return "";
     const copy = typeof node.cloneNode === "function" ? node.cloneNode(true) : node;
@@ -73,24 +98,24 @@
     return (copy.textContent || "").replace(/\s+/g, " ").trim();
   }
   function messageAuthor(message) {
-    const node = message.children[2];
+    const node = authorSlot(message);
     if (!node) return "Someone";
-    const link = node.matches?.(AUTHOR_LINK) ? node : node.querySelector?.(AUTHOR_LINK);
-    const fromLink = authorLabel(link);
+    const fromAttr = dataUsername(node).replace(/\s\[\d[\d,]*\]$/, "");
+    if (fromAttr) return fromAttr;
+    const fromLink = authorLabel(authorProfileLink(node));
     if (fromLink) return fromLink;
     const label = authorLabel(node).replace(/\s\[\d[\d,]*\]$/, "");
     return label || "Someone";
   }
   function messageProfileName(message) {
-    const link = message.querySelector('a[href^="profile.php?user_name="]');
-    const href = link?.getAttribute("href") || "";
-    const match = href.match(/user_name=(.+)$/);
-    if (!match) return null;
-    try {
-      return decodeURIComponent(match[1]);
-    } catch {
-      return match[1];
-    }
+    const node = authorSlot(message);
+    if (!node) return null;
+    const fromAttr = dataUsername(node);
+    if (fromAttr) return fromAttr;
+    const fromLink = profileNameFromLink(authorProfileLink(node));
+    if (fromLink) return fromLink;
+    const label = authorLabel(node).replace(/\s\[\d[\d,]*\]$/, "");
+    return label || null;
   }
   function fingerprint(message) {
     const timestamp = message.children[0]?.textContent || "";

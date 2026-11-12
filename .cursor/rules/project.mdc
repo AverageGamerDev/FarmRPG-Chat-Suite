@@ -48,7 +48,7 @@ export const myTool = defineFeature({
 - Item keywords match `<img alt>` in the message body, not free text. A trade-side setting skips a post that is only the other side. Selling is WTS, selling, or sell. Buying is WTB, buying, or buy. Any capitalization counts. On mobile the badge sits in `.chip-label`. The row still highlights.
 - Mute collapses that player's rows and skips their mention and item alerts. Unmute sits on the collapsed row and in the menu list. The saved list stays when Mute is turned off.
 - Friends mark that player's rows in blue. Your own rows stay orange. Friends do not send an alert.
-- The author name is the profile link in message child 2. A chip level such as `[200]` is not the name.
+- The author name is `img[data-username]` in message child 2, or the chip label when that attribute is absent. A `profile.php` link in the body is an @mention, not the author. A chip level such as `[200]` is not the name.
 - Pins and the separator anchor are in-memory. The separator anchor is per zone. A redraw that still starts with that message does not insert a line. Pins clear when the feature stops.
 - Classes: `fcs-` enhancer, `fcs-qc-` quick chat. No raw colors outside `tokens.css`. `data-fcs-theme` on `<html>` follows the page background.
 - Enabled tools persist in `fcs_enabled_v1`. The navbar label reads `toggle.label`.

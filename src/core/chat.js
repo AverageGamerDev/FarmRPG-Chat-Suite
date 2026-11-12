@@ -7,9 +7,11 @@
  *
  * Each message is .chat-txt. Element children:
  *   0  timestamp
- *   2  username — a profile link, or a .chip whose profile link is the name.
- *      The chip also shows a level such as "[200]"; that level is not the name.
- *   5  message body (item links render as <a><img alt="item"></a>)
+ *   2  username — a .chip. The name is img[data-username], or the
+ *      .chip-label text. A level such as "[200]" is not the name.
+ *      Older rows used a profile.php link in this same slot.
+ *   5  message body (item links render as <a><img alt="item"></a>).
+ *      An @mention is a profile.php link in the body, not the author.
  * Profile links: profile.php?user_name=<name> with spaces as "+".
  * Composer: #chat_txt_desktop, #chat_txt_mobile, #chat_message_compact,
  * or input[id^="chat_txt_"].
@@ -49,6 +51,36 @@ export function messageBody(message) {
 }
 
 const AUTHOR_LINK = 'a[href*="profile.php?user_name="]';
+const USERNAME_ATTR = "[data-username]";
+
+function authorSlot(message) {
+  return message?.children?.[2] ?? null;
+}
+
+function dataUsername(node) {
+  if (!node) return "";
+  const marked = node.matches?.(USERNAME_ATTR) ? node : node.querySelector?.(USERNAME_ATTR);
+  const value = marked?.getAttribute?.("data-username");
+  return value ? String(value).trim() : "";
+}
+
+function authorProfileLink(node) {
+  if (!node) return null;
+  if (node.matches?.(AUTHOR_LINK)) return node;
+  return node.querySelector?.(AUTHOR_LINK) ?? null;
+}
+
+function profileNameFromLink(link) {
+  const href = link?.getAttribute?.("href") || "";
+  const match = href.match(/user_name=(.+)$/);
+  if (!match) return null;
+
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+}
 
 function authorLabel(node) {
   if (!node) return "";
@@ -66,16 +98,18 @@ function authorLabel(node) {
 }
 
 /**
- * Author label. The mobile username is a .chip that also contains the level,
- * so the profile link inside child 2 is the name. A keyword badge appended
- * inside that slot is left out.
+ * Author label. The username slot is a .chip: img[data-username] is the name,
+ * and the visible label is the mailbox link in .chip-label. A keyword badge
+ * appended inside that slot is left out. A level such as "[200]" is not the name.
  */
 export function messageAuthor(message) {
-  const node = message.children[2];
+  const node = authorSlot(message);
   if (!node) return "Someone";
 
-  const link = node.matches?.(AUTHOR_LINK) ? node : node.querySelector?.(AUTHOR_LINK);
-  const fromLink = authorLabel(link);
+  const fromAttr = dataUsername(node).replace(/\s\[\d[\d,]*\]$/, "");
+  if (fromAttr) return fromAttr;
+
+  const fromLink = authorLabel(authorProfileLink(node));
   if (fromLink) return fromLink;
 
   const label = authorLabel(node).replace(/\s\[\d[\d,]*\]$/, "");
@@ -83,20 +117,22 @@ export function messageAuthor(message) {
 }
 
 /**
- * Raw user_name query value from the profile link, or null.
+ * Stable author id from the username slot, or null.
+ * A profile.php link in the body is an @mention, so it is not the author.
  * @param {Element} message
  */
 export function messageProfileName(message) {
-  const link = message.querySelector('a[href^="profile.php?user_name="]');
-  const href = link?.getAttribute("href") || "";
-  const match = href.match(/user_name=(.+)$/);
-  if (!match) return null;
+  const node = authorSlot(message);
+  if (!node) return null;
 
-  try {
-    return decodeURIComponent(match[1]);
-  } catch {
-    return match[1];
-  }
+  const fromAttr = dataUsername(node);
+  if (fromAttr) return fromAttr;
+
+  const fromLink = profileNameFromLink(authorProfileLink(node));
+  if (fromLink) return fromLink;
+
+  const label = authorLabel(node).replace(/\s\[\d[\d,]*\]$/, "");
+  return label || null;
 }
 
 /**
