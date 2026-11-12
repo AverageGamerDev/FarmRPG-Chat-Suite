@@ -5,7 +5,7 @@ alwaysApply: true
 
 # FarmRPG Chat Suite
 
-Userscript. esbuild bundles `src/main.js` to `dist/farmrpg-chat-suite.user.js` (IIFE, CSS as text). Matches and `@grant GM_notification` live in `esbuild.config.js`.
+Userscript. esbuild bundles `src/main.js` to `dist/farmrpg-chat-suite.user.js` (IIFE, CSS as text). Matches, `@grant GM_notification`, `@updateURL`, and `@downloadURL` live in `esbuild.config.js`. `@version` is the `package.json` version. `pnpm update-major` raises it for a new feature. `pnpm update-minor` raises it for a small fix or change. Both rebuild the userscript.
 
 `pnpm build` · `pnpm watch` · `pnpm test` (`test/suite.test.js`, node:test).
 

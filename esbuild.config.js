@@ -1,12 +1,20 @@
+import { readFileSync } from "node:fs";
 import { build, context } from "esbuild";
 
 const isWatchMode = process.argv.includes("--watch");
+
+const { version } = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
+
+const scriptUrl =
+  "https://raw.githubusercontent.com/AverageGamerDev/FarmRPG-Chat-Suite/main/dist/farmrpg-chat-suite.user.js";
 
 const userscriptMetadata = `
 // ==UserScript==
 // @name         FarmRPG Chat Suite
 // @namespace    https://farmrpg.com/
-// @version      1.0.0
+// @version      ${version}
+// @updateURL    ${scriptUrl}
+// @downloadURL  ${scriptUrl}
 // @description  Chat enhancements and quick chat utilities for FarmRPG
 // @author       Cadis Etrama Di Raizel
 // @match        https://farmrpg.com/

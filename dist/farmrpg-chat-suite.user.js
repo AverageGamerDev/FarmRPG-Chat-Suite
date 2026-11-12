@@ -2,7 +2,9 @@
 // ==UserScript==
 // @name         FarmRPG Chat Suite
 // @namespace    https://farmrpg.com/
-// @version      1.0.0
+// @version      1.1.0
+// @updateURL    https://raw.githubusercontent.com/AverageGamerDev/FarmRPG-Chat-Suite/main/dist/farmrpg-chat-suite.user.js
+// @downloadURL  https://raw.githubusercontent.com/AverageGamerDev/FarmRPG-Chat-Suite/main/dist/farmrpg-chat-suite.user.js
 // @description  Chat enhancements and quick chat utilities for FarmRPG
 // @author       Cadis Etrama Di Raizel
 // @match        https://farmrpg.com/

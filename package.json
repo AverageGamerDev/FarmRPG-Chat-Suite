@@ -1,12 +1,14 @@
 {
   "name": "chat-suite",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Modular FarmRPG chat enhancements and quick chat userscript",
   "main": "index.js",
   "scripts": {
     "test": "node --test",
     "build": "node esbuild.config.js",
-    "watch": "node esbuild.config.js --watch"
+    "watch": "node esbuild.config.js --watch",
+    "update-major": "node scripts/update-userscript-version.js major",
+    "update-minor": "node scripts/update-userscript-version.js minor"
   },
   "keywords": [],
   "author": "",
